@@ -20,13 +20,13 @@ Current first iteration focuses on the fastest useful workflow:
 ### Quick Install (Recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/prefapp/pad/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/vieitesss/pad/main/scripts/install.sh | sh
 ```
 
 Install to a custom directory:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/prefapp/pad/main/scripts/install.sh | INSTALL_DIR=/usr/local/bin sh
+curl -fsSL https://raw.githubusercontent.com/vieitesss/pad/main/scripts/install.sh | INSTALL_DIR=/usr/local/bin sh
 ```
 
 ### Build from Source
