@@ -13,13 +13,13 @@ ARCH=$(uname -m)
 
 case "$OS" in
     Linux)
-        GOOS="Linux"
+        GOOS="linux"
         ;;
     Darwin)
-        GOOS="Darwin"
+        GOOS="darwin"
         ;;
     CYGWIN*|MINGW*|MSYS*)
-        GOOS="Windows"
+        GOOS="windows"
         ;;
     *)
         echo "Error: Unsupported operating system: $OS" >&2
@@ -29,7 +29,7 @@ esac
 
 case "$ARCH" in
     x86_64|amd64)
-        GOARCH="x86_64"
+        GOARCH="amd64"
         ;;
     arm64|aarch64)
         GOARCH="arm64"
@@ -42,7 +42,7 @@ esac
 
 # Get latest release version
 echo "Fetching latest release..."
-LATEST=$(curl -fsSL -H "User-Agent: pad-installer" "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | head -1 | sed -E 's/.*"tag_name".*"([^"]+)".*/\1/')
+LATEST=$(curl -fsSL -H "User-Agent: pad-installer" "https://api.github.com/repos/$REPO/releases/latest" | sed -E 's/.*"tag_name":"([^"]+)".*/\1/')
 
 if [ -z "$LATEST" ]; then
     echo "Error: Could not determine latest release" >&2
@@ -51,22 +51,40 @@ fi
 
 echo "Latest version: $LATEST"
 
+# Strip 'v' prefix for asset filename
+VERSION_NO_V=$(echo "$LATEST" | sed 's/^v//')
+
 # Create temp directory
 TMP_DIR=$(mktemp -d)
 trap "rm -rf $TMP_DIR" EXIT
 
 # Download release
 echo "Downloading pad for $GOOS/$GOARCH..."
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST/pad_${GOOS}_${GOARCH}.tar.gz"
 
-if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_DIR/pad.tar.gz"; then
+if [ "$GOOS" = "windows" ]; then
+    DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST/pad_${VERSION_NO_V}_${GOOS}_${GOARCH}.zip"
+else
+    DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST/pad_${VERSION_NO_V}_${GOOS}_${GOARCH}.tar.gz"
+fi
+
+if [ "$GOOS" = "windows" ]; then
+    ARCHIVE_PATH="$TMP_DIR/pad.zip"
+else
+    ARCHIVE_PATH="$TMP_DIR/pad.tar.gz"
+fi
+
+if ! curl -fsSL "$DOWNLOAD_URL" -o "$ARCHIVE_PATH"; then
     echo "Error: Failed to download $DOWNLOAD_URL" >&2
     exit 1
 fi
 
 # Extract
 echo "Extracting..."
-tar -xzf "$TMP_DIR/pad.tar.gz" -C "$TMP_DIR"
+if [ "$GOOS" = "windows" ]; then
+    unzip -q "$ARCHIVE_PATH" -d "$TMP_DIR"
+else
+    tar -xzf "$ARCHIVE_PATH" -C "$TMP_DIR"
+fi
 
 # Create install directory if needed
 if [ ! -d "$INSTALL_DIR" ]; then
