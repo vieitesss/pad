@@ -17,6 +17,10 @@ func NewRootCmd(version string) *cobra.Command {
 		SilenceErrors: true,
 		Version:       version,
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			// Don't show upgrade notice after running upgrade command
+			if cmd.Name() == "upgrade" {
+				return
+			}
 			showUpdateNotice()
 		},
 	}
