@@ -42,7 +42,7 @@ esac
 
 # Get latest release version
 echo "Fetching latest release..."
-LATEST=$(curl -fsSL -H "User-Agent: pad-installer" "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+LATEST=$(curl -fsSL -H "User-Agent: pad-installer" "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | head -1 | sed -E 's/.*"tag_name".*"([^"]+)".*/\1/')
 
 if [ -z "$LATEST" ]; then
     echo "Error: Could not determine latest release" >&2
