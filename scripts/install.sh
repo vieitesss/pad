@@ -4,7 +4,7 @@
 
 set -e
 
-REPO="prefapp/pad"
+REPO="vieitesss/pad"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
 # Detect OS and architecture
