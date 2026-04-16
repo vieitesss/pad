@@ -15,18 +15,32 @@ Current first iteration focuses on the fastest useful workflow:
 - preview the rendered GitHub issue body with `pad show` or `pad create --dry-run`
 - create the GitHub issue in your configured repository with `pad create`
 
-## Setup
+## Installation
+
+### Quick Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/prefapp/pad/main/scripts/install.sh | sh
+```
+
+Install to a custom directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/prefapp/pad/main/scripts/install.sh | INSTALL_DIR=/usr/local/bin sh
+```
+
+### Build from Source
 
 Requirements:
 
 - Go 1.25+
 - `gh` installed and authenticated with `gh auth login`
 
-Build from source:
-
 ```bash
 go build -o pad .
 ```
+
+## Setup
 
 Create the default config:
 
@@ -229,3 +243,21 @@ List recent merged report issues:
 ```bash
 ./pad report --list
 ```
+
+## Auto-Update Check
+
+`pad` automatically checks for new releases once per day. When an update is available, you'll see a notice after any command:
+
+```
+→ v0.2.0 is available. Run pad upgrade to update.
+```
+
+## Upgrade
+
+Update to the latest release:
+
+```bash
+pad upgrade
+```
+
+This downloads the latest release from GitHub and replaces the current binary.
