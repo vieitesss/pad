@@ -13,7 +13,7 @@ func newListCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List async daily issues created by you",
+		Short: "List daily update issues created by you",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env, err := loadEnv()
 			if err != nil {
@@ -25,13 +25,13 @@ func newListCmd() *cobra.Command {
 				return err
 			}
 
-			issues, err := env.gh.ListAsyncDailyIssues(ctx, env.cfg.GitHubRepo, env.cfg.Labels, limit)
+			issues, err := env.gh.ListDailyUpdateIssues(ctx, env.cfg.GitHubRepo, env.cfg.Labels, limit)
 			if err != nil {
 				return err
 			}
 
 			if len(issues) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "no remote async daily issues found for the authenticated user")
+				fmt.Fprintln(cmd.OutOrStdout(), "no remote daily update issues found for the authenticated user")
 				return nil
 			}
 

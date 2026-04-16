@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"text/tabwriter"
 
-	"github.com/prefapp/pad/internal/ghcli"
 	"github.com/spf13/cobra"
+	"github.com/vieitesss/pad/internal/ghcli"
 )
 
 func newReportCmd() *cobra.Command {
@@ -17,7 +17,7 @@ func newReportCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "report",
-		Short: "Show the merged async daily team report issue",
+		Short: "Show the merged daily update team report issue",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env, err := loadEnv()
 			if err != nil {
@@ -36,7 +36,7 @@ func newReportCmd() *cobra.Command {
 				}
 
 				if len(issues) == 0 {
-					fmt.Fprintln(cmd.OutOrStdout(), "no async daily report issues found")
+					fmt.Fprintln(cmd.OutOrStdout(), "no daily update report issues found")
 					return nil
 				}
 
@@ -57,7 +57,7 @@ func newReportCmd() *cobra.Command {
 			issue, err := env.gh.FindReportIssueByDate(ctx, env.cfg.GitHubRepo, resolvedDate)
 			if err != nil {
 				if errors.Is(err, ghcli.ErrIssueNotFound) {
-					return fmt.Errorf("no async daily report issue found for %s", resolvedDate)
+					return fmt.Errorf("no daily update report issue found for %s", resolvedDate)
 				}
 
 				return err

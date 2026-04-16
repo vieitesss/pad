@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/prefapp/pad/internal/ghcli"
 	"github.com/spf13/cobra"
+	"github.com/vieitesss/pad/internal/ghcli"
 )
 
 func newShowCmd() *cobra.Command {
@@ -14,7 +14,7 @@ func newShowCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "show",
-		Short: "Print your async daily issue body from GitHub for a date",
+		Short: "Print your daily update issue body from GitHub for a date",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env, err := loadEnv()
 			if err != nil {
@@ -31,10 +31,10 @@ func newShowCmd() *cobra.Command {
 				return err
 			}
 
-			issue, err := env.gh.FindAsyncDailyIssueByDate(ctx, env.cfg.GitHubRepo, env.cfg.Labels, resolvedDate)
+			issue, err := env.gh.FindDailyUpdateIssueByDate(ctx, env.cfg.GitHubRepo, env.cfg.Labels, resolvedDate)
 			if err != nil {
 				if errors.Is(err, ghcli.ErrIssueNotFound) {
-					return fmt.Errorf("no remote async daily issue found for %s", resolvedDate)
+					return fmt.Errorf("no remote daily update issue found for %s", resolvedDate)
 				}
 
 				return err

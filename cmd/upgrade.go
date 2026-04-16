@@ -2,18 +2,21 @@ package cmd
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/prefapp/pad/internal/version"
 	"github.com/spf13/cobra"
+	"github.com/vieitesss/pad/internal/version"
 )
 
 func newUpgradeCmd() *cobra.Command {
@@ -44,6 +47,12 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	}
 
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#22C55E"))
+	if runtime.GOOS == "windows" {
+		yellow := lipgloss.NewStyle().Foreground(lipgloss.Color("#F59E0B"))
+		fmt.Println(yellow.Render("Upgrade scheduled. Restart pad after this command exits to finish replacing the binary."))
+		return nil
+	}
+
 	fmt.Println(green.Render("✓ Upgrade successful! Restart pad to use the new version."))
 
 	return nil
@@ -60,20 +69,15 @@ func downloadAndInstall(tagName string) error {
 		realPath = binPath
 	}
 
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-
-	if goos == "darwin" {
-		goos = "Darwin"
-	}
-	if goarch == "amd64" {
-		goarch = "x86_64"
+	release, err := version.ReleaseByTag(tagName)
+	if err != nil {
+		return fmt.Errorf("load release metadata: %w", err)
 	}
 
-	url := fmt.Sprintf(
-		"https://github.com/prefapp/pad/releases/download/%s/pad_%s_%s.tar.gz",
-		tagName, goos, goarch,
-	)
+	asset, err := release.AssetForRuntime(runtime.GOOS, runtime.GOARCH)
+	if err != nil {
+		return err
+	}
 
 	tmpDir, err := os.MkdirTemp("", "pad-upgrade-*")
 	if err != nil {
@@ -81,14 +85,19 @@ func downloadAndInstall(tagName string) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	tarPath := filepath.Join(tmpDir, "pad.tar.gz")
-	if err := downloadFile(url, tarPath); err != nil {
+	archivePath := filepath.Join(tmpDir, asset.Name)
+	if err := downloadFile(asset.BrowserDownloadURL, archivePath); err != nil {
 		return fmt.Errorf("download release: %w", err)
 	}
 
-	newBinPath := filepath.Join(tmpDir, "pad")
-	if err := extractBinary(tarPath, newBinPath); err != nil {
+	archiveBinaryName := archivedBinaryName(runtime.GOOS)
+	newBinPath := filepath.Join(tmpDir, archiveBinaryName)
+	if err := extractBinary(archivePath, archiveBinaryName, newBinPath); err != nil {
 		return fmt.Errorf("extract binary: %w", err)
+	}
+
+	if runtime.GOOS == "windows" {
+		return stageWindowsUpgrade(newBinPath, realPath)
 	}
 
 	backupPath := realPath + ".backup"
@@ -108,6 +117,66 @@ func downloadAndInstall(tagName string) error {
 	}
 
 	return nil
+}
+
+func archivedBinaryName(goos string) string {
+	if goos == "windows" {
+		return "pad.exe"
+	}
+
+	return "pad"
+}
+
+func stageWindowsUpgrade(src, realPath string) error {
+	stagedPath := realPath + ".new"
+	if err := copyFile(src, stagedPath); err != nil {
+		return fmt.Errorf("stage new binary: %w", err)
+	}
+
+	cmd := exec.Command(
+		"powershell.exe",
+		"-NoProfile",
+		"-NonInteractive",
+		"-Command",
+		windowsUpgradeScript(realPath, stagedPath, realPath+".backup"),
+	)
+	if err := cmd.Start(); err != nil {
+		_ = os.Remove(stagedPath)
+		return fmt.Errorf("start windows installer: %w", err)
+	}
+
+	if cmd.Process != nil {
+		_ = cmd.Process.Release()
+	}
+
+	return nil
+}
+
+func windowsUpgradeScript(realPath, stagedPath, backupPath string) string {
+	return fmt.Sprintf(`$ErrorActionPreference = 'Stop'
+$target = %s
+$staged = %s
+$backup = %s
+for ($i = 0; $i -lt 20; $i++) {
+  try {
+    if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force }
+    Move-Item -LiteralPath $target -Destination $backup -Force
+    Move-Item -LiteralPath $staged -Destination $target -Force
+    Remove-Item -LiteralPath $backup -Force
+    exit 0
+  } catch {
+    if ((Test-Path -LiteralPath $backup) -and -not (Test-Path -LiteralPath $target)) {
+      Move-Item -LiteralPath $backup -Destination $target -Force
+    }
+    Start-Sleep -Milliseconds 500
+  }
+}
+throw 'timed out replacing pad.exe'
+`, powershellString(realPath), powershellString(stagedPath), powershellString(backupPath))
+}
+
+func powershellString(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 func downloadFile(url, dest string) error {
@@ -131,8 +200,19 @@ func downloadFile(url, dest string) error {
 	return err
 }
 
-func extractBinary(tarPath, dest string) error {
-	file, err := os.Open(tarPath)
+func extractBinary(archivePath, binaryName, dest string) error {
+	switch {
+	case strings.HasSuffix(archivePath, ".tar.gz"):
+		return extractTarGzBinary(archivePath, binaryName, dest)
+	case strings.HasSuffix(archivePath, ".zip"):
+		return extractZipBinary(archivePath, binaryName, dest)
+	default:
+		return fmt.Errorf("unsupported archive format for %s", archivePath)
+	}
+}
+
+func extractTarGzBinary(archivePath, binaryName, dest string) error {
+	file, err := os.Open(archivePath)
 	if err != nil {
 		return err
 	}
@@ -155,21 +235,64 @@ func extractBinary(tarPath, dest string) error {
 			return err
 		}
 
-		if header.Typeflag == tar.TypeReg && strings.Contains(header.Name, "pad") {
-			out, err := os.Create(dest)
-			if err != nil {
-				return err
-			}
-			defer out.Close()
-
-			if _, err := io.Copy(out, tr); err != nil {
-				return err
-			}
-			return nil
+		if header.Typeflag == tar.TypeReg && path.Base(header.Name) == binaryName {
+			return writeReaderToFile(dest, tr, 0o755)
 		}
 	}
 
-	return fmt.Errorf("binary not found in archive")
+	return fmt.Errorf("binary %s not found in archive", binaryName)
+}
+
+func extractZipBinary(archivePath, binaryName, dest string) error {
+	reader, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	for _, file := range reader.File {
+		if file.FileInfo().IsDir() || path.Base(file.Name) != binaryName {
+			continue
+		}
+
+		rc, err := file.Open()
+		if err != nil {
+			return err
+		}
+
+		perm := file.Mode()
+		if perm == 0 {
+			perm = 0o755
+		}
+
+		writeErr := writeReaderToFile(dest, rc, perm)
+		closeErr := rc.Close()
+		if writeErr != nil {
+			return writeErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("binary %s not found in archive", binaryName)
+}
+
+func writeReaderToFile(dest string, src io.Reader, perm os.FileMode) error {
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+
+	_, copyErr := io.Copy(out, src)
+	closeErr := out.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+
+	return closeErr
 }
 
 func copyFile(src, dest string) error {

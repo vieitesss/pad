@@ -1,6 +1,6 @@
-name: Async Daily
-about: Daily async standup update
-title: "[Async Daily] [YYYY/MM/DD]"
+name: Daily Update
+about: Daily standup update
+title: "[Daily Update] [YYYY/MM/DD]"
 labels: []
 body:
   - type: markdown

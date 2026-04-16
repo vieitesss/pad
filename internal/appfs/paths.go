@@ -1,7 +1,7 @@
 package appfs
 
 import (
-	"github.com/prefapp/pad/internal/config"
+	"github.com/vieitesss/pad/internal/config"
 )
 
 type Paths struct {

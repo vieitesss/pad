@@ -1,0 +1,48 @@
+name: Refresh Issue Template Date
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+
+  workflow_dispatch:
+    inputs:
+      template_date:
+        description: 'Template date in YYYY-MM-DD or YYYY/MM/DD. Leave empty to use tomorrow in UTC.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-issue-template-date:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Refresh issue template date
+        env:
+          ISSUE_TEMPLATE_PATH: .github/ISSUE_TEMPLATE/daily-update.yml
+          TEMPLATE_DATE: ${{ github.event.inputs.template_date || '' }}
+        run: |
+          python3 .github/scripts/refresh_issue_template.py
+
+      - name: Commit template update
+        run: |
+          if git diff --quiet; then
+            echo "No template changes to commit"
+            exit 0
+          fi
+
+          git config user.name "GitHub Action"
+          git config user.email "actions@github.com"
+
+          git add .github/ISSUE_TEMPLATE/daily-update.yml
+          git commit -m "chore: refresh daily update template date"
+          git push origin "${{ github.ref_name }}"

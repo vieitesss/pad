@@ -5,14 +5,14 @@ import (
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/prefapp/pad/internal/version"
 	"github.com/spf13/cobra"
+	"github.com/vieitesss/pad/internal/version"
 )
 
 func NewRootCmd(version string) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "pad",
-		Short:         "Async daily standup helper",
+		Short:         "Daily update standup helper",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,

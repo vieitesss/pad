@@ -134,7 +134,7 @@ func TestBodyRendersTemplateSections(t *testing.T) {
 }
 
 func TestDateFromIssueTitle(t *testing.T) {
-	date, ok := DateFromIssueTitle("[Async Daily] [2026/04/16]")
+	date, ok := DateFromIssueTitle("[Daily Update] [2026/04/16]")
 	if !ok {
 		t.Fatalf("expected title to parse")
 	}

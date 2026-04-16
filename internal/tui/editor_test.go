@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/prefapp/pad/internal/daily"
+	"github.com/vieitesss/pad/internal/daily"
 )
 
 func TestNextVisibleIndexWrapsForwardFromLastField(t *testing.T) {
@@ -78,7 +78,7 @@ func TestPreviewContentContainsRenderedTemplate(t *testing.T) {
 	})
 
 	checks := []string{
-		"[Async Daily] [2026/04/16]",
+		"[Daily Update] [2026/04/16]",
 		"## ✅ What did you do yesterday?",
 		"## 🎯 What will you do today?",
 	}

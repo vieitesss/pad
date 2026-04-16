@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/prefapp/pad/internal/appfs"
-	"github.com/prefapp/pad/internal/config"
 	"github.com/spf13/cobra"
+	"github.com/vieitesss/pad/internal/appfs"
+	"github.com/vieitesss/pad/internal/config"
 )
 
 func newInitCmd() *cobra.Command {
@@ -40,7 +40,7 @@ func newInitCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&repo, "repo", "", "GitHub repository for async daily issues (required)")
+	cmd.Flags().StringVar(&repo, "repo", "", "GitHub repository for daily update issues (required)")
 	cmd.Flags().StringSliceVar(&labels, "labels", nil, "Labels to apply when creating issues (can be specified multiple times)")
 
 	return cmd

@@ -4,13 +4,13 @@
 
 # pad
 
-`pad` is a small CLI with a simple terminal UI that helps teams draft and publish async daily standup updates without repeating the same manual steps every day.
+`pad` is a small CLI with a simple terminal UI that helps teams draft and publish daily standup updates without repeating the same manual steps every day.
 
 Current first iteration focuses on the fastest useful workflow:
 
 - open a split editor with live preview directly from `pad create`
-- prefill from your latest GitHub async daily issue with `pad repeat`
-- list your already-published async dailies directly from GitHub with `pad list`
+- prefill from your latest GitHub daily update issue with `pad repeat`
+- list your already-published daily updates directly from GitHub with `pad list`
 - read the merged team report issue with `pad report`
 - preview the rendered GitHub issue body with `pad show` or `pad create --dry-run`
 - create the GitHub issue in your configured repository with `pad create`
@@ -78,31 +78,31 @@ Create a repository (e.g., `your-org/dailies` or `your-org/standups`).
 
 Copy the issue template from this repository:
 
-- [`.github/ISSUE_TEMPLATE/async-daily.yml`](.github/ISSUE_TEMPLATE/async-daily.yml)
+- [`.github/ISSUE_TEMPLATE/daily-update.yml`](.github/ISSUE_TEMPLATE/daily-update.yml)
 
-Place it in your repository at the same path. This template defines the structure that `pad` expects when parsing and creating issues.
+Place it in your repository at the same path. This template matches the structure that `pad` currently expects when parsing and creating issues.
 
 ### 3. (Optional) Set Up Automated Workflows
 
 This repository includes ready-to-use GitHub Actions workflows:
 
-**Async Daily Reporter** (`.github/workflows/asyncdaily-reporter.yml.example` → rename to `.yml`)
+**Publish Team Digest** (`.github/workflows/publish-team-digest.yml.example` → rename to `.yml`)
 - Collects all daily issues from team members
 - Generates a merged report with parking lot items highlighted
 - Closes individual issues after including them in the report
 - Runs weekdays at 10:45 AM UTC (customize the cron schedule as needed)
 
-**Async Daily Template Updater** (`.github/workflows/asyncdaily-updater.yml.example` → rename to `.yml`)
+**Refresh Daily Update Template** (`.github/workflows/refresh-daily-update-template.yml.example` → rename to `.yml`)
 - Automatically updates the issue template date to tomorrow
 - Runs daily at 12:00 PM UTC
 
 To use these workflows:
 
 1. Copy the workflow files from `.github/workflows/` to your repository (remove `.example` extension)
-2. Copy the scripts from `.github/scripts/` to your repository
+2. Copy the Python helper scripts from `.github/scripts/` to your repository
 3. Set up repository variables (optional):
-   - `ASYNC_DAILY_LABEL`: Label for individual daily issues (default: `async-daily`)
-   - `ASYNC_DAILY_REPORT_LABEL`: Label for report issues (default: `async-daily/report`)
+   - `DAILY_UPDATE_LABEL`: Label for individual updates (default: `daily-update`)
+   - `DAILY_REPORT_LABEL`: Label for report issues (default: `daily-update/report`)
 4. The reporter workflow uses `GITHUB_TOKEN` which is automatically available
 
 The report issue title follows this format: `[Daily Report] YYYY/MM/DD`
@@ -182,13 +182,13 @@ Then restart PowerShell.
 
 ## Main Usage
 
-Open the async daily editor for today. The left pane shows the template fields, the right pane shows a live preview, and `pad` asks for confirmation before publishing:
+Open the daily update editor for today. The left pane shows the template fields, the right pane shows a live preview, and `pad` asks for confirmation before publishing:
 
 ```bash
 ./pad create
 ```
 
-Repeat from your latest GitHub async daily issue into today's editor and create a new issue:
+Repeat from your latest GitHub daily update issue into today's editor and create a new issue:
 
 ```bash
 ./pad repeat
@@ -220,7 +220,7 @@ Open the editor and print the exact title and body without publishing:
 ./pad create --dry-run
 ```
 
-List your async daily issues from GitHub:
+List your daily update issues from GitHub:
 
 ```bash
 ./pad list

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prefapp/pad/internal/daily"
+	"github.com/vieitesss/pad/internal/daily"
 )
 
 var ErrIssueNotFound = errors.New("issue not found")
@@ -23,7 +23,7 @@ type Client struct {
 	run runner
 }
 
-type AsyncDailyIssue struct {
+type DailyUpdateIssue struct {
 	Number    int
 	Title     string
 	Body      string
@@ -34,7 +34,7 @@ type AsyncDailyIssue struct {
 	UpdatedAt time.Time
 }
 
-type ReportIssue = AsyncDailyIssue
+type ReportIssue = DailyUpdateIssue
 
 type issueListItem struct {
 	Number    int    `json:"number"`
@@ -101,25 +101,25 @@ func (c *Client) CreateIssue(ctx context.Context, repo, title, body string, labe
 	return daily.IssueRef{Number: issueNumber, URL: issueURL}, nil
 }
 
-func (c *Client) ListAsyncDailyIssues(ctx context.Context, repo string, labels []string, limit int) ([]AsyncDailyIssue, error) {
+func (c *Client) ListDailyUpdateIssues(ctx context.Context, repo string, labels []string, limit int) ([]DailyUpdateIssue, error) {
 	return c.searchIssues(ctx, repo, "@me", labels, limit, "")
 }
 
-func (c *Client) FindAsyncDailyIssueByDate(ctx context.Context, repo string, labels []string, date string) (AsyncDailyIssue, error) {
+func (c *Client) FindDailyUpdateIssueByDate(ctx context.Context, repo string, labels []string, date string) (DailyUpdateIssue, error) {
 	title, err := daily.TitleForDate(date)
 	if err != nil {
-		return AsyncDailyIssue{}, err
+		return DailyUpdateIssue{}, err
 	}
 
 	issues, err := c.searchIssues(ctx, repo, "@me", labels, 5, fmt.Sprintf("%q in:title", title))
 	if err != nil {
-		return AsyncDailyIssue{}, err
+		return DailyUpdateIssue{}, err
 	}
 
 	if len(issues) == 0 {
 		issues, err = c.searchIssues(ctx, repo, "@me", labels, 10, fmt.Sprintf("created:%s", date))
 		if err != nil {
-			return AsyncDailyIssue{}, err
+			return DailyUpdateIssue{}, err
 		}
 	}
 
@@ -131,24 +131,24 @@ func (c *Client) FindAsyncDailyIssueByDate(ctx context.Context, repo string, lab
 		return c.ViewIssue(ctx, repo, issue.Number)
 	}
 
-	return AsyncDailyIssue{}, ErrIssueNotFound
+	return DailyUpdateIssue{}, ErrIssueNotFound
 }
 
-func (c *Client) LatestAsyncDailyIssue(ctx context.Context, repo string, labels []string) (AsyncDailyIssue, error) {
-	issues, err := c.ListAsyncDailyIssues(ctx, repo, labels, 1)
+func (c *Client) LatestDailyUpdateIssue(ctx context.Context, repo string, labels []string) (DailyUpdateIssue, error) {
+	issues, err := c.ListDailyUpdateIssues(ctx, repo, labels, 1)
 	if err != nil {
-		return AsyncDailyIssue{}, err
+		return DailyUpdateIssue{}, err
 	}
 
 	if len(issues) == 0 {
-		return AsyncDailyIssue{}, ErrIssueNotFound
+		return DailyUpdateIssue{}, ErrIssueNotFound
 	}
 
 	return c.ViewIssue(ctx, repo, issues[0].Number)
 }
 
 func (c *Client) ListReportIssues(ctx context.Context, repo string, limit int) ([]ReportIssue, error) {
-	return c.searchIssues(ctx, repo, "", []string{"async-daily/report"}, limit, "")
+	return c.searchIssues(ctx, repo, "", []string{"daily-update/report"}, limit, "")
 }
 
 func (c *Client) FindReportIssueByDate(ctx context.Context, repo string, date string) (ReportIssue, error) {
@@ -157,13 +157,13 @@ func (c *Client) FindReportIssueByDate(ctx context.Context, repo string, date st
 		return ReportIssue{}, err
 	}
 
-	issues, err := c.searchIssues(ctx, repo, "", []string{"async-daily/report"}, 5, fmt.Sprintf("%q in:title", title))
+	issues, err := c.searchIssues(ctx, repo, "", []string{"daily-update/report"}, 5, fmt.Sprintf("%q in:title", title))
 	if err != nil {
 		return ReportIssue{}, err
 	}
 
 	if len(issues) == 0 {
-		issues, err = c.searchIssues(ctx, repo, "", []string{"async-daily/report"}, 10, fmt.Sprintf("created:%s", date))
+		issues, err = c.searchIssues(ctx, repo, "", []string{"daily-update/report"}, 10, fmt.Sprintf("created:%s", date))
 		if err != nil {
 			return ReportIssue{}, err
 		}
@@ -180,7 +180,7 @@ func (c *Client) FindReportIssueByDate(ctx context.Context, repo string, date st
 	return ReportIssue{}, ErrIssueNotFound
 }
 
-func (c *Client) searchIssues(ctx context.Context, repo, author string, labels []string, limit int, search string) ([]AsyncDailyIssue, error) {
+func (c *Client) searchIssues(ctx context.Context, repo, author string, labels []string, limit int, search string) ([]DailyUpdateIssue, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -215,7 +215,7 @@ func (c *Client) searchIssues(ctx context.Context, repo, author string, labels [
 		return nil, fmt.Errorf("decode GitHub issues: %w", err)
 	}
 
-	issues := make([]AsyncDailyIssue, 0, len(raw))
+	issues := make([]DailyUpdateIssue, 0, len(raw))
 	for _, item := range raw {
 		createdAt, err := time.Parse(time.RFC3339, item.CreatedAt)
 		if err != nil {
@@ -227,7 +227,7 @@ func (c *Client) searchIssues(ctx context.Context, repo, author string, labels [
 			return nil, fmt.Errorf("parse issue updatedAt %q: %w", item.UpdatedAt, err)
 		}
 
-		issues = append(issues, AsyncDailyIssue{
+		issues = append(issues, DailyUpdateIssue{
 			Number:    item.Number,
 			Title:     item.Title,
 			URL:       item.URL,
@@ -241,28 +241,28 @@ func (c *Client) searchIssues(ctx context.Context, repo, author string, labels [
 	return issues, nil
 }
 
-func (c *Client) ViewIssue(ctx context.Context, repo string, number int) (AsyncDailyIssue, error) {
+func (c *Client) ViewIssue(ctx context.Context, repo string, number int) (DailyUpdateIssue, error) {
 	output, err := c.run(ctx, "issue", "view", strconv.Itoa(number), "--repo", repo, "--json", "number,title,body,url,state,createdAt,updatedAt")
 	if err != nil {
-		return AsyncDailyIssue{}, fmt.Errorf("view GitHub issue: %s", strings.TrimSpace(string(output)))
+		return DailyUpdateIssue{}, fmt.Errorf("view GitHub issue: %s", strings.TrimSpace(string(output)))
 	}
 
 	var item issueViewItem
 	if err := json.Unmarshal(output, &item); err != nil {
-		return AsyncDailyIssue{}, fmt.Errorf("decode GitHub issue: %w", err)
+		return DailyUpdateIssue{}, fmt.Errorf("decode GitHub issue: %w", err)
 	}
 
 	createdAt, err := time.Parse(time.RFC3339, item.CreatedAt)
 	if err != nil {
-		return AsyncDailyIssue{}, fmt.Errorf("parse issue createdAt %q: %w", item.CreatedAt, err)
+		return DailyUpdateIssue{}, fmt.Errorf("parse issue createdAt %q: %w", item.CreatedAt, err)
 	}
 
 	updatedAt, err := time.Parse(time.RFC3339, item.UpdatedAt)
 	if err != nil {
-		return AsyncDailyIssue{}, fmt.Errorf("parse issue updatedAt %q: %w", item.UpdatedAt, err)
+		return DailyUpdateIssue{}, fmt.Errorf("parse issue updatedAt %q: %w", item.UpdatedAt, err)
 	}
 
-	return AsyncDailyIssue{
+	return DailyUpdateIssue{
 		Number:    item.Number,
 		Title:     item.Title,
 		Body:      item.Body,

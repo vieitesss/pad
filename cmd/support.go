@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/prefapp/pad/internal/appfs"
-	"github.com/prefapp/pad/internal/config"
-	"github.com/prefapp/pad/internal/daily"
-	"github.com/prefapp/pad/internal/ghcli"
+	"github.com/vieitesss/pad/internal/appfs"
+	"github.com/vieitesss/pad/internal/config"
+	"github.com/vieitesss/pad/internal/daily"
+	"github.com/vieitesss/pad/internal/ghcli"
 )
 
 type commandEnv struct {
@@ -55,9 +55,9 @@ func ensureCanCreateForDate(ctx context.Context, env *commandEnv, date string) e
 		return err
 	}
 
-	existingIssue, err := env.gh.FindAsyncDailyIssueByDate(ctx, env.cfg.GitHubRepo, env.cfg.Labels, date)
+	existingIssue, err := env.gh.FindDailyUpdateIssueByDate(ctx, env.cfg.GitHubRepo, env.cfg.Labels, date)
 	if err == nil {
-		return fmt.Errorf("async daily issue already exists for %s: %s", date, existingIssue.URL)
+		return fmt.Errorf("daily update issue already exists for %s: %s", date, existingIssue.URL)
 	}
 
 	if errors.Is(err, ghcli.ErrIssueNotFound) {

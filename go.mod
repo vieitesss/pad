@@ -1,4 +1,4 @@
-module github.com/prefapp/pad
+module github.com/vieitesss/pad
 
 go 1.25.0
 

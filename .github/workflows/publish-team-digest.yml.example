@@ -1,0 +1,42 @@
+name: Publish Team Digest
+
+on:
+  schedule:
+    - cron: '45 10 * * 1-5'
+
+  workflow_dispatch:
+    inputs:
+      report_date:
+        description: 'Report date in YYYY-MM-DD. Leave empty to use today in UTC.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: team-digest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-team-digest:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Publish team digest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPORT_DATE: ${{ github.event.inputs.report_date || '' }}
+          DAILY_UPDATE_LABEL: ${{ vars.DAILY_UPDATE_LABEL || 'daily-update' }}
+          DAILY_REPORT_LABEL: ${{ vars.DAILY_REPORT_LABEL || 'daily-update/report' }}
+        run: |
+          python3 .github/scripts/publish_team_digest.py

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/prefapp/pad/internal/daily"
-	"github.com/prefapp/pad/internal/ghcli"
-	"github.com/prefapp/pad/internal/tui"
 	"github.com/spf13/cobra"
+	"github.com/vieitesss/pad/internal/daily"
+	"github.com/vieitesss/pad/internal/ghcli"
+	"github.com/vieitesss/pad/internal/tui"
 )
 
 func newRepeatCmd() *cobra.Command {
@@ -17,7 +17,7 @@ func newRepeatCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "repeat",
-		Short: "Prefill from your latest GitHub async daily issue and create a new one",
+		Short: "Prefill from your latest GitHub daily update issue and create a new one",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env, err := loadEnv()
 			if err != nil {
@@ -40,10 +40,10 @@ func newRepeatCmd() *cobra.Command {
 				}
 			}
 
-			latestIssue, err := env.gh.LatestAsyncDailyIssue(ctx, env.cfg.GitHubRepo, env.cfg.Labels)
+			latestIssue, err := env.gh.LatestDailyUpdateIssue(ctx, env.cfg.GitHubRepo, env.cfg.Labels)
 			if err != nil {
 				if errors.Is(err, ghcli.ErrIssueNotFound) {
-					return fmt.Errorf("no previous async daily issues found for the authenticated user")
+					return fmt.Errorf("no previous daily update issues found for the authenticated user")
 				}
 
 				return err

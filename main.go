@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/prefapp/pad/cmd"
-	"github.com/prefapp/pad/internal/version"
+	"github.com/vieitesss/pad/cmd"
+	"github.com/vieitesss/pad/internal/version"
 )
 
 var buildVersion = "dev"

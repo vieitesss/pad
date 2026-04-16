@@ -8,7 +8,7 @@ import (
 
 const DateLayout = "2006-01-02"
 
-const issueTitlePrefix = "[Async Daily] ["
+const issueTitlePrefix = "[Daily Update] ["
 const reportTitlePrefix = "[Daily Report] "
 
 type IssueRef struct {
@@ -128,11 +128,11 @@ func (e Entry) Body() string {
 
 func (e Entry) ValidateForCreate() error {
 	if strings.TrimSpace(e.Yesterday) == "" {
-		return fmt.Errorf("yesterday section is required; fill it in with `pad create` or `pad repeat --edit`")
+		return fmt.Errorf("yesterday section is required; fill it in with `pad create` or `pad repeat`")
 	}
 
 	if strings.TrimSpace(e.Today) == "" {
-		return fmt.Errorf("today section is required; fill it in with `pad create` or `pad repeat --edit`")
+		return fmt.Errorf("today section is required; fill it in with `pad create` or `pad repeat`")
 	}
 
 	return nil

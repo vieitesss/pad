@@ -4,21 +4,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
-	"github.com/prefapp/pad/internal/appfs"
+	"github.com/vieitesss/pad/internal/appfs"
 )
 
 const (
-	githubRepo    = "prefapp/pad"
+	githubRepo    = "vieitesss/pad"
 	checkInterval = 24 * time.Hour
 )
 
+type ReleaseAsset struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+}
+
 type ReleaseInfo struct {
-	TagName     string    `json:"tag_name"`
-	PublishedAt time.Time `json:"published_at"`
-	HTMLURL     string    `json:"html_url"`
+	TagName     string         `json:"tag_name"`
+	PublishedAt time.Time      `json:"published_at"`
+	HTMLURL     string         `json:"html_url"`
+	Assets      []ReleaseAsset `json:"assets"`
 }
 
 type VersionState struct {
@@ -67,10 +74,42 @@ func CheckUpdate() (*ReleaseInfo, bool) {
 	return nil, false
 }
 
-func fetchLatestRelease() (*ReleaseInfo, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubRepo)
+func LatestRelease() (*ReleaseInfo, error) {
+	return fetchRelease(fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubRepo))
+}
 
-	resp, err := http.Get(url)
+func ReleaseByTag(tag string) (*ReleaseInfo, error) {
+	return fetchRelease(fmt.Sprintf("https://api.github.com/repos/%s/releases/tags/%s", githubRepo, url.PathEscape(tag)))
+}
+
+func (r ReleaseInfo) AssetForRuntime(goos, goarch string) (ReleaseAsset, error) {
+	name, err := assetNameFor(r.TagName, goos, goarch)
+	if err != nil {
+		return ReleaseAsset{}, err
+	}
+
+	for _, asset := range r.Assets {
+		if asset.Name == name {
+			return asset, nil
+		}
+	}
+
+	return ReleaseAsset{}, fmt.Errorf("release %s does not contain asset %s", r.TagName, name)
+}
+
+func fetchLatestRelease() (*ReleaseInfo, error) {
+	return LatestRelease()
+}
+
+func fetchRelease(apiURL string) (*ReleaseInfo, error) {
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "pad")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +125,20 @@ func fetchLatestRelease() (*ReleaseInfo, error) {
 	}
 
 	return &release, nil
+}
+
+func assetNameFor(tagName, goos, goarch string) (string, error) {
+	trimmedTag := strings.TrimSpace(strings.TrimPrefix(tagName, "v"))
+	if trimmedTag == "" {
+		return "", fmt.Errorf("release tag is empty")
+	}
+
+	ext := ".tar.gz"
+	if goos == "windows" {
+		ext = ".zip"
+	}
+
+	return fmt.Sprintf("pad_%s_%s_%s%s", trimmedTag, goos, goarch, ext), nil
 }
 
 func isNewer(latest, current string) bool {

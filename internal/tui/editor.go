@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/prefapp/pad/internal/daily"
+	"github.com/vieitesss/pad/internal/daily"
 )
 
 var ErrCanceled = errors.New("edit canceled")
@@ -326,7 +326,7 @@ func (m model) leftPaneView() string {
 	current := m.currentField()
 	editingBlock := []string{
 		paneTitleStyle.Render("Template"),
-		mutedStyle.Render("Fill the async-daily template on the left. The right pane updates live."),
+		mutedStyle.Render("Fill the daily update template on the left. The right pane updates live."),
 		"",
 		strings.Join(fieldLines, "\n"),
 		"",
@@ -413,7 +413,7 @@ func helpItem(keyStyle lipgloss.Style, key, description string) string {
 
 func (m model) actionTitle() string {
 	if m.mode == modeCreate {
-		return "Create Async Daily"
+		return "Create Daily Update"
 	}
 
 	return "Edit Draft"

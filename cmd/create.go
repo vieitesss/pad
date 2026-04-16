@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/prefapp/pad/internal/daily"
-	"github.com/prefapp/pad/internal/tui"
 	"github.com/spf13/cobra"
+	"github.com/vieitesss/pad/internal/daily"
+	"github.com/vieitesss/pad/internal/tui"
 )
 
 func newCreateCmd() *cobra.Command {
@@ -16,7 +16,7 @@ func newCreateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Open the async daily editor and create the GitHub issue",
+		Short: "Open the daily update editor and create the GitHub issue",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env, err := loadEnv()
 			if err != nil {

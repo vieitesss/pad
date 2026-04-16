@@ -49,7 +49,7 @@ jobs:
         if: steps.check_branch.outputs.on_main == 'false'
         run: |
           mkdir -p dist
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${{ github.ref_name }}-snapshot" -o dist/pad .
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.buildVersion=${{ github.ref_name }}-snapshot" -o dist/pad .
 
       - name: Upload snapshot artifacts
         if: steps.check_branch.outputs.on_main == 'false'

@@ -1,4 +1,4 @@
-This repo contains `pad`, a Go CLI/TUI that helps teams draft, repeat, review, and publish async daily standup updates as GitHub issues with less manual copy/paste.
+This repo contains `pad`, a Go CLI/TUI that helps teams draft, repeat, review, and publish daily standup updates as GitHub issues with less manual copy/paste.
 
 ## Stack
 
@@ -6,7 +6,7 @@ This repo contains `pad`, a Go CLI/TUI that helps teams draft, repeat, review, a
 - CLI: `github.com/spf13/cobra`
 - Simple terminal UI: `github.com/charmbracelet/bubbletea`
 - GitHub integration for the first iterations: `gh` CLI, so the app can reuse the user's existing GitHub auth
-- Local storage: config only in the user's config directory; async daily history is read from GitHub
+- Local storage: config only in the user's config directory; daily update history is read from GitHub
 - Database: none for now; only introduce SQLite if plain files become a real limitation
 
 ## Release Versioning
@@ -28,4 +28,4 @@ This first iteration does not yet auto-suggest URLs or fetch each individual wor
 - 2026-04-16: Initial GitHub issue creation goes through `gh` instead of direct API calls so setup stays simple and users can rely on existing GitHub authentication.
 - 2026-04-16: Go's `os.UserConfigDir()` does not honor `XDG_CONFIG_HOME` on macOS. Keep `pad` on explicit env-aware path helpers so tests and local overrides can isolate config/data cleanly.
 - 2026-04-16: `gh` authentication depends on its normal config home. If tests or wrappers override `XDG_CONFIG_HOME`, remote commands like `pad list` and remote `pad show` will not see existing `gh auth login` state unless that config is also made available.
-- 2026-04-16: `pad repeat` now pre-fills from the latest GitHub async-daily issue by the authenticated user instead of reading local JSON entries.
+- 2026-04-16: `pad repeat` now pre-fills from the latest GitHub daily update issue by the authenticated user instead of reading local JSON entries.
