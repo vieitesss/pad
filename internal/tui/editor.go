@@ -10,25 +10,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/vieitesss/pad/internal/daily"
+	"github.com/vieitesss/pad/internal/issueform"
 )
 
 var ErrCanceled = errors.New("edit canceled")
-
-const (
-	yesterdayField = iota
-	todayField
-	blockersField
-	parkingLotField
-	parkingLotDetailsField
-	additionalCommentsField
-)
-
-type fieldKind int
-
-const (
-	textField fieldKind = iota
-	boolField
-)
 
 type editorMode int
 
@@ -36,51 +21,6 @@ const (
 	modeSave editorMode = iota
 	modeCreate
 )
-
-type fieldDef struct {
-	Title       string
-	Description string
-	Kind        fieldKind
-	Placeholder string
-}
-
-var fieldDefs = []fieldDef{
-	{
-		Title:       "✅ What did you do yesterday?",
-		Description: "Describe what you accomplished yesterday.",
-		Kind:        textField,
-		Placeholder: "- Reviewed PR #123\n- Finished API changes",
-	},
-	{
-		Title:       "🎯 What will you do today?",
-		Description: "Outline your plans for today.",
-		Kind:        textField,
-		Placeholder: "- Continue feature work\n- Write documentation",
-	},
-	{
-		Title:       "🚧 Any blockers?",
-		Description: "Optional. Mention obstacles you are facing.",
-		Kind:        textField,
-		Placeholder: "- Waiting for code review\n- Need clarification on scope",
-	},
-	{
-		Title:       "🚨 Request a Parking Lot or escalation?",
-		Description: "Toggle this on when you need escalation or want to add a topic to the Parking Lot.",
-		Kind:        boolField,
-	},
-	{
-		Title:       "📝 Parking Lot Details",
-		Description: "Only used when escalation is enabled.",
-		Kind:        textField,
-		Placeholder: "- Need clarification on API contract changes",
-	},
-	{
-		Title:       "💬 Additional Comments",
-		Description: "Optional extra notes or context for the team.",
-		Kind:        textField,
-		Placeholder: "- Offline after 17:00\n- Waiting for design confirmation",
-	},
-}
 
 var (
 	headerStyle         = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
@@ -105,6 +45,7 @@ var (
 type model struct {
 	mode           editorMode
 	entry          daily.Entry
+	fields         []issueform.Field
 	index          int
 	editor         textarea.Model
 	preview        viewport.Model
@@ -159,11 +100,12 @@ func newModel(entry daily.Entry, mode editorMode) model {
 	editor.SetHeight(8)
 
 	preview := viewport.New(40, 8)
+	fields := entry.Template.EditableFields()
 
 	m := model{
 		mode:    mode,
 		entry:   entry.Normalize(),
-		index:   yesterdayField,
+		fields:  fields,
 		editor:  editor,
 		preview: preview,
 		width:   120,
@@ -211,10 +153,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-		if m.currentField().Kind == boolField {
+		if m.currentField().Type == issueform.FieldCheckboxes {
 			switch msg.String() {
 			case " ", "enter":
-				m.entry.ParkingLot = !m.entry.ParkingLot
+				m.entry.SetChecked(m.currentField().ID, !m.entry.Checked(m.currentField().ID))
 				m.refreshPreview()
 				return m, nil
 			}
@@ -223,7 +165,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if m.currentField().Kind != textField {
+	if !m.currentFieldIsText() {
 		return m, nil
 	}
 
@@ -292,6 +234,9 @@ func (m model) View() string {
 	if m.entry.Source != "" {
 		headerLines = append(headerLines, mutedStyle.Render("Source: "+m.entry.Source))
 	}
+	if strings.TrimSpace(m.entry.Template.Path) != "" {
+		headerLines = append(headerLines, mutedStyle.Render("Template: "+m.entry.Template.Path))
+	}
 
 	content := []string{
 		lipgloss.JoinVertical(lipgloss.Left, headerLines...),
@@ -311,8 +256,8 @@ func (m model) bodyView(left, right string) string {
 }
 
 func (m model) leftPaneView() string {
-	fieldLines := make([]string, 0, len(fieldDefs))
-	for index, def := range fieldDefs {
+	fieldLines := make([]string, 0, len(m.fields))
+	for index, field := range m.fields {
 		prefix := "  "
 		titleStyle := mutedStyle
 		if index == m.index {
@@ -320,25 +265,27 @@ func (m model) leftPaneView() string {
 			titleStyle = currentFieldStyle
 		}
 
-		fieldLines = append(fieldLines, fmt.Sprintf("%s%s %s", prefix, titleStyle.Render(def.Title), m.fieldStatus(index)))
+		fieldLines = append(fieldLines, fmt.Sprintf("%s%s %s", prefix, titleStyle.Render(field.Label), m.fieldStatus(index)))
 	}
 
 	current := m.currentField()
 	editingBlock := []string{
 		paneTitleStyle.Render("Template"),
-		mutedStyle.Render("Fill the daily update template on the left. The right pane updates live."),
+		mutedStyle.Render("Fill the current remote issue template on the left. The right pane updates live."),
 		"",
 		strings.Join(fieldLines, "\n"),
 		"",
 		paneTitleStyle.Render("Editing"),
-		currentFieldStyle.Render(current.Title),
-		mutedStyle.Render(current.Description),
-		"",
+		currentFieldStyle.Render(current.Label),
 	}
+	if current.Description != "" {
+		editingBlock = append(editingBlock, mutedStyle.Render(current.Description))
+	}
+	editingBlock = append(editingBlock, "")
 
-	if current.Kind == boolField {
+	if current.Type == issueform.FieldCheckboxes {
 		value := "No"
-		if m.entry.ParkingLot {
+		if m.entry.Checked(current.ID) {
 			value = "Yes"
 		}
 		editingBlock = append(editingBlock,
@@ -385,7 +332,6 @@ func (m model) footerView() string {
 		return lipgloss.JoinVertical(lipgloss.Left, lines...)
 	}
 
-	primaryKeyStyle := actionKeyStyle
 	primaryDescription := "save"
 	if m.mode == modeCreate {
 		primaryDescription = "create"
@@ -397,7 +343,7 @@ func (m model) footerView() string {
 		helpDividerStyle.Render("  •  "),
 		helpItem(navKeyStyle, "shift+tab", "previous field"),
 		helpDividerStyle.Render("  •  "),
-		helpItem(primaryKeyStyle, "ctrl+s", primaryDescription),
+		helpItem(actionKeyStyle, "ctrl+s", primaryDescription),
 		helpDividerStyle.Render("  •  "),
 		helpItem(previewKeyStyle, "pgup/pgdn", "scroll preview"),
 		helpDividerStyle.Render("  •  "),
@@ -421,20 +367,20 @@ func (m model) actionTitle() string {
 
 func (m *model) move(step int) {
 	m.persistCurrentField()
-	m.index = nextVisibleIndex(m.index, step, m.entry.ParkingLot)
+	m.index = nextVisibleIndex(m.index, step, len(m.fields))
 	m.syncEditor()
 	m.refreshPreview()
 }
 
 func (m *model) syncEditor() {
-	if m.currentField().Kind != textField {
+	if !m.currentFieldIsText() {
 		m.editor.Blur()
 		return
 	}
 
 	m.editor.Focus()
 	m.editor.Placeholder = m.currentField().Placeholder
-	m.editor.SetValue(m.storedTextValue(m.index))
+	m.editor.SetValue(m.entry.Text(m.currentField().ID))
 	m.resizeEditor()
 }
 
@@ -477,59 +423,41 @@ func previewContent(entry daily.Entry) string {
 }
 
 func (m *model) persistCurrentField() {
-	if m.currentField().Kind != textField {
+	if !m.currentFieldIsText() {
 		return
 	}
 
-	m.setTextValue(m.index, m.editor.Value())
+	m.entry.SetText(m.currentField().ID, m.editor.Value())
 }
 
 func (m model) finalEntry() daily.Entry {
 	entry := m.entry
-	if m.currentField().Kind == textField {
-		switch m.index {
-		case yesterdayField:
-			entry.Yesterday = m.editor.Value()
-		case todayField:
-			entry.Today = m.editor.Value()
-		case blockersField:
-			entry.Blockers = m.editor.Value()
-		case parkingLotDetailsField:
-			entry.ParkingLotDetails = m.editor.Value()
-		case additionalCommentsField:
-			entry.AdditionalComments = m.editor.Value()
-		}
+	if m.currentFieldIsText() {
+		entry.SetText(m.currentField().ID, m.editor.Value())
 	}
-
-	if !entry.ParkingLot {
-		entry.ParkingLotDetails = ""
-	}
-
 	return entry.Normalize()
 }
 
-func (m model) currentField() fieldDef {
-	return fieldDefs[m.index]
+func (m model) currentField() issueform.Field {
+	return m.fields[m.index]
+}
+
+func (m model) currentFieldIsText() bool {
+	switch m.currentField().Type {
+	case issueform.FieldTextarea, issueform.FieldInput:
+		return true
+	default:
+		return false
+	}
 }
 
 func (m model) fieldStatus(index int) string {
-	var status string
-	var style lipgloss.Style
-
-	switch index {
-	case parkingLotField:
-		if m.entry.ParkingLot {
-			status = "[yes]"
-			style = statusFilledStyle
-		} else {
-			status = "[no]"
-			style = statusEmptyStyle
+	field := m.fields[index]
+	if field.Type == issueform.FieldCheckboxes {
+		if m.entry.Checked(field.ID) {
+			return statusFilledStyle.Render("[yes]")
 		}
-		return style.Render(status)
-	case parkingLotDetailsField:
-		if !m.entry.ParkingLot {
-			return statusDisabledStyle.Render("[disabled]")
-		}
+		return statusEmptyStyle.Render("[no]")
 	}
 
 	if strings.TrimSpace(m.textValue(index)) == "" {
@@ -540,44 +468,12 @@ func (m model) fieldStatus(index int) string {
 }
 
 func (m model) textValue(index int) string {
-	if index == m.index && m.currentField().Kind == textField {
+	field := m.fields[index]
+	if index == m.index && m.currentFieldIsText() {
 		return m.editor.Value()
 	}
 
-	return m.storedTextValue(index)
-}
-
-func (m model) storedTextValue(index int) string {
-
-	switch index {
-	case yesterdayField:
-		return m.entry.Yesterday
-	case todayField:
-		return m.entry.Today
-	case blockersField:
-		return m.entry.Blockers
-	case parkingLotDetailsField:
-		return m.entry.ParkingLotDetails
-	case additionalCommentsField:
-		return m.entry.AdditionalComments
-	default:
-		return ""
-	}
-}
-
-func (m *model) setTextValue(index int, value string) {
-	switch index {
-	case yesterdayField:
-		m.entry.Yesterday = value
-	case todayField:
-		m.entry.Today = value
-	case blockersField:
-		m.entry.Blockers = value
-	case parkingLotDetailsField:
-		m.entry.ParkingLotDetails = value
-	case additionalCommentsField:
-		m.entry.AdditionalComments = value
-	}
+	return m.entry.Text(field.ID)
 }
 
 func (m model) splitLayout() bool {
@@ -664,24 +560,17 @@ func (m model) rightPaneHeight() int {
 	return height
 }
 
-func nextVisibleIndex(current, step int, parkingLot bool) int {
+func nextVisibleIndex(current, step, total int) int {
+	if total <= 0 {
+		return 0
+	}
+
 	candidate := current + step
-
-	// Wrap around boundaries
 	if candidate < 0 {
-		candidate = len(fieldDefs) - 1
-	} else if candidate >= len(fieldDefs) {
-		candidate = 0
+		return total - 1
 	}
-
-	// Skip parking lot details if disabled
-	if candidate == parkingLotDetailsField && !parkingLot {
-		// Continue in same direction, but prevent infinite loop
-		if step == 0 {
-			step = 1
-		}
-		return nextVisibleIndex(candidate, step, parkingLot)
+	if candidate >= total {
+		return 0
 	}
-
 	return candidate
 }

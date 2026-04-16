@@ -2,6 +2,7 @@ package ghcli
 
 import (
 	"context"
+	"encoding/base64"
 	"strings"
 	"testing"
 )
@@ -123,5 +124,26 @@ func TestFindReportIssueByDateLoadsIssueBody(t *testing.T) {
 
 	if issue.Body != "team report body" {
 		t.Fatalf("expected team report body, got %q", issue.Body)
+	}
+}
+
+func TestReadRepositoryFileDecodesBase64Content(t *testing.T) {
+	client := newForTests(func(_ context.Context, args ...string) ([]byte, error) {
+		joined := strings.Join(args, " ")
+		if !strings.Contains(joined, "api repos/prefapp/doc-daily-updates/contents/.github/ISSUE_TEMPLATE/daily-update.yml") {
+			t.Fatalf("unexpected gh command %q", joined)
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte("title: daily update\n"))
+		return []byte(`{"encoding":"base64","content":"` + encoded + `"}`), nil
+	})
+
+	content, err := client.ReadRepositoryFile(context.Background(), "prefapp/doc-daily-updates", ".github/ISSUE_TEMPLATE/daily-update.yml")
+	if err != nil {
+		t.Fatalf("read repository file: %v", err)
+	}
+
+	if string(content) != "title: daily update\n" {
+		t.Fatalf("unexpected content %q", string(content))
 	}
 }

@@ -58,12 +58,19 @@ Example config:
 ```toml
 github_repo = "owner/repo"
 labels = ["daily-update"]
+issue_template = ".github/ISSUE_TEMPLATE/daily-update.yml"
 ```
 
 Configure your repository:
 
 ```bash
 ./pad init --repo owner/repo --labels daily-update
+```
+
+Use a different remote issue template path:
+
+```bash
+./pad init --repo owner/repo --labels daily-update --issue-template .github/ISSUE_TEMPLATE/team-standup.yml
 ```
 
 ## Repository Setup
@@ -80,7 +87,7 @@ Copy the issue template from this repository:
 
 - [`.github/ISSUE_TEMPLATE/daily-update.yml`](.github/ISSUE_TEMPLATE/daily-update.yml)
 
-Place it in your repository at the same path. This template matches the structure that `pad` currently expects when parsing and creating issues.
+Place it in your repository at the same path, or configure a different path with `issue_template` in `pad.toml`. `pad` fetches the template from GitHub before opening the TUI, builds the editor fields dynamically from the template, and reuses stable field IDs when repeating older entries.
 
 ### 3. (Optional) Set Up Automated Workflows
 

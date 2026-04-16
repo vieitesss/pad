@@ -2,6 +2,7 @@ package ghcli
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -55,6 +56,11 @@ type issueViewItem struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
+type repoContentItem struct {
+	Content  string `json:"content"`
+	Encoding string `json:"encoding"`
+}
+
 func New() *Client {
 	return &Client{run: runGH}
 }
@@ -99,6 +105,35 @@ func (c *Client) CreateIssue(ctx context.Context, repo, title, body string, labe
 	}
 
 	return daily.IssueRef{Number: issueNumber, URL: issueURL}, nil
+}
+
+func (c *Client) ReadRepositoryFile(ctx context.Context, repo, filePath string) ([]byte, error) {
+	owner, name, err := splitRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	apiPath := fmt.Sprintf("repos/%s/%s/contents/%s", url.PathEscape(owner), url.PathEscape(name), escapeRepoPath(filePath))
+	output, err := c.run(ctx, "api", apiPath)
+	if err != nil {
+		return nil, fmt.Errorf("read repository file: %s", strings.TrimSpace(string(output)))
+	}
+
+	var item repoContentItem
+	if err := json.Unmarshal(output, &item); err != nil {
+		return nil, fmt.Errorf("decode repository file: %w", err)
+	}
+
+	if item.Encoding != "base64" {
+		return nil, fmt.Errorf("unsupported repository file encoding %q", item.Encoding)
+	}
+
+	content, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(item.Content, "\n", ""))
+	if err != nil {
+		return nil, fmt.Errorf("decode repository file content: %w", err)
+	}
+
+	return content, nil
 }
 
 func (c *Client) ListDailyUpdateIssues(ctx context.Context, repo string, labels []string, limit int) ([]DailyUpdateIssue, error) {
@@ -299,6 +334,26 @@ func issueNumberFromURL(rawURL string) (int, error) {
 	}
 
 	return number, nil
+}
+
+func splitRepo(repo string) (string, string, error) {
+	parts := strings.SplitN(strings.TrimSpace(repo), "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("invalid repository %q", repo)
+	}
+	return parts[0], parts[1], nil
+}
+
+func escapeRepoPath(filePath string) string {
+	parts := strings.Split(strings.Trim(filePath, "/"), "/")
+	escaped := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		escaped = append(escaped, url.PathEscape(part))
+	}
+	return strings.Join(escaped, "/")
 }
 
 func runGH(ctx context.Context, args ...string) ([]byte, error) {

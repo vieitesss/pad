@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vieitesss/pad/internal/ghcli"
+	"github.com/vieitesss/pad/internal/tui"
 )
 
 func newShowCmd() *cobra.Command {
@@ -31,7 +32,9 @@ func newShowCmd() *cobra.Command {
 				return err
 			}
 
-			issue, err := env.gh.FindDailyUpdateIssueByDate(ctx, env.cfg.GitHubRepo, env.cfg.Labels, resolvedDate)
+			issue, err := tui.RunWithSpinner(ctx, fmt.Sprintf("Fetching daily update for %s", resolvedDate), func(ctx context.Context) (ghcli.DailyUpdateIssue, error) {
+				return env.gh.FindDailyUpdateIssueByDate(ctx, env.cfg.GitHubRepo, env.cfg.Labels, resolvedDate)
+			})
 			if err != nil {
 				if errors.Is(err, ghcli.ErrIssueNotFound) {
 					return fmt.Errorf("no remote daily update issue found for %s", resolvedDate)

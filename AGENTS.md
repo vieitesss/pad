@@ -29,3 +29,6 @@ This first iteration does not yet auto-suggest URLs or fetch each individual wor
 - 2026-04-16: Go's `os.UserConfigDir()` does not honor `XDG_CONFIG_HOME` on macOS. Keep `pad` on explicit env-aware path helpers so tests and local overrides can isolate config/data cleanly.
 - 2026-04-16: `gh` authentication depends on its normal config home. If tests or wrappers override `XDG_CONFIG_HOME`, remote commands like `pad list` and remote `pad show` will not see existing `gh auth login` state unless that config is also made available.
 - 2026-04-16: `pad repeat` now pre-fills from the latest GitHub daily update issue by the authenticated user instead of reading local JSON entries.
+- 2026-04-16: Daily issue bodies now include hidden `<!-- pad:id:... -->` markers on section headings so `pad repeat` and the bundled report workflow can survive template label changes as long as field IDs stay stable.
+- 2026-04-16: Remote operations (loading templates, fetching issues, checking for duplicates) now show a loading spinner using `charmbracelet/bubbles`. Falls back gracefully in non-terminal environments.
+- 2026-04-16: Issue titles are now generated from the template's `title` field, with date placeholder replacement (YYYY/MM/DD, YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY). Falls back to legacy `[Daily Update] [YYYY/MM/DD]` format if the template has no title.

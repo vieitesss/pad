@@ -34,13 +34,18 @@ func newRepeatCmd() *cobra.Command {
 				return err
 			}
 
+			template, err := loadIssueTemplate(ctx, env)
+			if err != nil {
+				return err
+			}
+
 			if !dryRun {
 				if err := ensureCanCreateForDate(ctx, env, resolvedDate); err != nil {
 					return err
 				}
 			}
 
-			latestIssue, err := env.gh.LatestDailyUpdateIssue(ctx, env.cfg.GitHubRepo, env.cfg.Labels)
+			latestIssue, err := fetchLatestDailyUpdate(ctx, env)
 			if err != nil {
 				if errors.Is(err, ghcli.ErrIssueNotFound) {
 					return fmt.Errorf("no previous daily update issues found for the authenticated user")
@@ -49,7 +54,7 @@ func newRepeatCmd() *cobra.Command {
 				return err
 			}
 
-			entry := daily.EntryFromIssueBody(resolvedDate, latestIssue.Body)
+			entry := daily.EntryFromIssueBody(resolvedDate, template, latestIssue.Body)
 			entry.Source = fmt.Sprintf("repeat:%s", latestIssue.Date)
 
 			if dryRun {

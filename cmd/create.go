@@ -29,13 +29,18 @@ func newCreateCmd() *cobra.Command {
 			}
 
 			ctx := context.Background()
+			template, err := loadIssueTemplate(ctx, env)
+			if err != nil {
+				return err
+			}
+
 			if !dryRun {
 				if err := ensureCanCreateForDate(ctx, env, resolvedDate); err != nil {
 					return err
 				}
 			}
 
-			entry := daily.New(resolvedDate)
+			entry := daily.New(resolvedDate, template)
 
 			if dryRun {
 				entry, err = tui.Edit(entry)

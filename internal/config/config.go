@@ -11,14 +11,16 @@ import (
 )
 
 type Config struct {
-	GitHubRepo string   `toml:"github_repo"`
-	Labels     []string `toml:"labels"`
+	GitHubRepo    string   `toml:"github_repo"`
+	Labels        []string `toml:"labels"`
+	IssueTemplate string   `toml:"issue_template"`
 }
 
 func Default() Config {
 	return Config{
-		GitHubRepo: "",
-		Labels:     []string{},
+		GitHubRepo:    "",
+		Labels:        []string{},
+		IssueTemplate: ".github/ISSUE_TEMPLATE/daily-update.yml",
 	}
 }
 

@@ -6,6 +6,8 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"github.com/vieitesss/pad/internal/ghcli"
+	"github.com/vieitesss/pad/internal/tui"
 )
 
 func newListCmd() *cobra.Command {
@@ -25,7 +27,9 @@ func newListCmd() *cobra.Command {
 				return err
 			}
 
-			issues, err := env.gh.ListDailyUpdateIssues(ctx, env.cfg.GitHubRepo, env.cfg.Labels, limit)
+			issues, err := tui.RunWithSpinner(ctx, "Fetching your daily updates", func(ctx context.Context) ([]ghcli.DailyUpdateIssue, error) {
+				return env.gh.ListDailyUpdateIssues(ctx, env.cfg.GitHubRepo, env.cfg.Labels, limit)
+			})
 			if err != nil {
 				return err
 			}

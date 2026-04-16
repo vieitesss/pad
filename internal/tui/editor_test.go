@@ -5,82 +5,34 @@ import (
 	"testing"
 
 	"github.com/vieitesss/pad/internal/daily"
+	"github.com/vieitesss/pad/internal/issueform"
 )
 
 func TestNextVisibleIndexWrapsForwardFromLastField(t *testing.T) {
-	lastField := len(fieldDefs) - 1
-	next := nextVisibleIndex(lastField, 1, false)
+	next := nextVisibleIndex(2, 1, 3)
 	if next != 0 {
 		t.Fatalf("expected wrap to field 0 from last field, got %d", next)
 	}
 }
 
 func TestNextVisibleIndexWrapsBackwardFromFirstField(t *testing.T) {
-	next := nextVisibleIndex(0, -1, false)
-	lastField := len(fieldDefs) - 1
-	if next != lastField {
-		t.Fatalf("expected wrap to field %d from first field, got %d", lastField, next)
-	}
-}
-
-func TestNextVisibleIndexSkipsParkingLotDetailsWhenDisabledForward(t *testing.T) {
-	next := nextVisibleIndex(parkingLotField, 1, false)
-	if next != additionalCommentsField {
-		t.Fatalf("expected skip to field %d, got %d", additionalCommentsField, next)
-	}
-}
-
-func TestNextVisibleIndexSkipsParkingLotDetailsWhenDisabledBackward(t *testing.T) {
-	next := nextVisibleIndex(additionalCommentsField, -1, false)
-	if next != parkingLotField {
-		t.Fatalf("expected skip back to field %d, got %d", parkingLotField, next)
-	}
-}
-
-func TestNextVisibleIndexIncludesParkingLotDetailsWhenEnabled(t *testing.T) {
-	next := nextVisibleIndex(parkingLotField, 1, true)
-	if next != parkingLotDetailsField {
-		t.Fatalf("expected next field %d, got %d", parkingLotDetailsField, next)
-	}
-}
-
-func TestFinalEntryClearsParkingLotDetailsWhenDisabled(t *testing.T) {
-	m := newModel(daily.Entry{
-		Date:              "2026-04-16",
-		ParkingLot:        false,
-		ParkingLotDetails: "should be cleared",
-	}, modeSave)
-
-	entry := m.finalEntry()
-	if entry.ParkingLotDetails != "" {
-		t.Fatalf("expected parking lot details to be cleared, got %q", entry.ParkingLotDetails)
-	}
-}
-
-func TestFinalEntryDoesNotMutateParkingLotDetailsInModel(t *testing.T) {
-	m := newModel(daily.Entry{
-		Date:              "2026-04-16",
-		ParkingLot:        false,
-		ParkingLotDetails: "keep me during editing",
-	}, modeCreate)
-
-	_ = m.finalEntry()
-	if m.entry.ParkingLotDetails != "keep me during editing" {
-		t.Fatalf("expected editor state to keep parking lot details, got %q", m.entry.ParkingLotDetails)
+	next := nextVisibleIndex(0, -1, 3)
+	if next != 2 {
+		t.Fatalf("expected wrap to field 2 from first field, got %d", next)
 	}
 }
 
 func TestPreviewContentContainsRenderedTemplate(t *testing.T) {
-	content := previewContent(daily.Entry{
-		Date:      "2026-04-16",
-		Yesterday: "- Reviewed PR #42",
-		Today:     "- Continue feature work",
-	})
+	entry := daily.New("2026-04-16", mustTemplate(t))
+	entry.SetText("yesterday", "- Reviewed PR #42")
+	entry.SetText("today", "- Continue feature work")
+
+	content := previewContent(entry)
 
 	checks := []string{
 		"[Daily Update] [2026/04/16]",
-		"## ✅ What did you do yesterday?",
-		"## 🎯 What will you do today?",
+		"## ✅ What did you do yesterday? <!-- pad:id:yesterday -->",
+		"## 🎯 What will you do today? <!-- pad:id:today -->",
 	}
 
 	for _, check := range checks {
@@ -91,7 +43,7 @@ func TestPreviewContentContainsRenderedTemplate(t *testing.T) {
 }
 
 func TestMoveLoadsStoredTextForEachField(t *testing.T) {
-	m := newModel(daily.Entry{Date: "2026-04-16"}, modeCreate)
+	m := newModel(daily.New("2026-04-16", mustTemplate(t)), modeCreate)
 	m.editor.SetValue("- first field text")
 	m.persistCurrentField()
 
@@ -107,4 +59,47 @@ func TestMoveLoadsStoredTextForEachField(t *testing.T) {
 	if got := m.editor.Value(); got != "- first field text" {
 		t.Fatalf("expected previous field text to be restored, got %q", got)
 	}
+}
+
+func TestCheckboxFieldTogglesInPreview(t *testing.T) {
+	m := newModel(daily.New("2026-04-16", mustTemplate(t)), modeCreate)
+	m.move(2)
+	if m.currentField().ID != "parking_lot" {
+		t.Fatalf("expected current field parking_lot, got %q", m.currentField().ID)
+	}
+
+	m.entry.SetChecked("parking_lot", true)
+	content := previewContent(m.finalEntry())
+	if !strings.Contains(content, "- [x] ✅ Yes, I need a Parking Lot or escalation") {
+		t.Fatalf("expected preview to show checked checkbox, got %q", content)
+	}
+}
+
+func mustTemplate(t *testing.T) issueform.Template {
+	t.Helper()
+	tmpl, err := issueform.Parse(".github/ISSUE_TEMPLATE/daily-update.yml", []byte(`
+body:
+  - type: textarea
+    id: yesterday
+    attributes:
+      label: "✅ What did you do yesterday?"
+      placeholder: "- Reviewed PR #123"
+
+  - type: textarea
+    id: today
+    attributes:
+      label: "🎯 What will you do today?"
+      placeholder: "- Continue feature work"
+
+  - type: checkboxes
+    id: parking_lot
+    attributes:
+      label: "🚨 Do you request a Parking Lot or escalation?"
+      options:
+        - label: "✅ Yes, I need a Parking Lot or escalation"
+`))
+	if err != nil {
+		t.Fatalf("parse template: %v", err)
+	}
+	return tmpl
 }

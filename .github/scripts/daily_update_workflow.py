@@ -294,48 +294,113 @@ def parse_issue_body(body: str) -> dict[str, Any]:
     if not body:
         return sections
 
-    sections["yesterday"] = extract_section(
+    field_sections = split_sections_by_field_id(body)
+
+    sections["yesterday"] = extract_field_section(
         body,
-        [
+        field_sections=field_sections,
+        field_id="yesterday",
+        patterns=[
             r"### ✅ What did you do yesterday\?\s*([\s\S]*?)(?=###|##|$)",
             r"## ✅ What did you do yesterday\?\s*([\s\S]*?)(?=##|$)",
         ],
     )
-    sections["today"] = extract_section(
+    sections["today"] = extract_field_section(
         body,
-        [
+        field_sections=field_sections,
+        field_id="today",
+        patterns=[
             r"### 🎯 What will you do today\?\s*([\s\S]*?)(?=###|##|$)",
             r"## 🎯 What will you do today\?\s*([\s\S]*?)(?=##|$)",
         ],
     )
-    sections["blockers"] = extract_section(
+    sections["blockers"] = extract_field_section(
         body,
-        [
+        field_sections=field_sections,
+        field_id="blockers",
+        patterns=[
             r"### 🚧 Any blockers\?\s*([\s\S]*?)(?=###|##|$)",
             r"## 🚧 Any blockers\?\s*([\s\S]*?)(?=##|$)",
         ],
         clean_empty=True,
     )
-    sections["parking_lot_details"] = extract_section(
+    sections["parking_lot_details"] = extract_field_section(
         body,
-        [
+        field_sections=field_sections,
+        field_id="parking_details",
+        patterns=[
             r"### 📝 Parking Lot Details\s*([\s\S]*?)(?=###|##|$)",
             r"## 📝 Parking Lot Details\s*([\s\S]*?)(?=##|$)",
         ],
         clean_empty=True,
     )
-    sections["additional_comments"] = extract_section(
+    sections["additional_comments"] = extract_field_section(
         body,
-        [
+        field_sections=field_sections,
+        field_id="comments",
+        patterns=[
             r"### 💬 Additional Comments\s*([\s\S]*?)(?=###|##|$)",
             r"## 💬 Additional Comments\s*([\s\S]*?)(?=##|$)",
         ],
         clean_empty=True,
     )
-    sections["parking_lot"] = bool(
-        re.search(r"- \[x\].*Parking Lot", body, flags=re.IGNORECASE)
-        or re.search(r"- ✅ Yes, I need a Parking Lot", body, flags=re.IGNORECASE)
+
+    parking_section = field_sections.get("parking_lot", "") or extract_section(
+        body,
+        [
+            r"### 🚨 Do you request a Parking Lot or escalation\?\s*([\s\S]*?)(?=###|##|$)",
+            r"## 🚨 Do you request a Parking Lot or escalation\?\s*([\s\S]*?)(?=##|$)",
+            r"### 🚨 Parking Lot / Escalation\s*([\s\S]*?)(?=###|##|$)",
+            r"## 🚨 Parking Lot / Escalation\s*([\s\S]*?)(?=##|$)",
+        ],
     )
+    sections["parking_lot"] = bool(
+        re.search(r"^- \[x\]", parking_section, flags=re.IGNORECASE | re.MULTILINE)
+        or re.search(
+            r"- ✅ Yes, I need a Parking Lot", parking_section, flags=re.IGNORECASE
+        )
+        or sections["parking_lot_details"]
+    )
+    return sections
+
+
+def extract_field_section(
+    body: str,
+    *,
+    field_sections: dict[str, str],
+    field_id: str,
+    patterns: list[str],
+    clean_empty: bool = False,
+) -> str:
+    value = field_sections.get(field_id, "")
+    if value:
+        return clean_empty_response(value) if clean_empty else value
+    return extract_section(body, patterns, clean_empty=clean_empty)
+
+
+def split_sections_by_field_id(body: str) -> dict[str, str]:
+    sections: dict[str, str] = {}
+    current_id = ""
+    current_lines: list[str] = []
+    heading_pattern = re.compile(
+        r"^#{2,6} .*?<!--\s*pad:id:([A-Za-z0-9._-]+)\s*-->\s*$"
+    )
+
+    for line in body.splitlines():
+        match = heading_pattern.match(line.strip())
+        if match:
+            if current_id:
+                sections[current_id] = "\n".join(current_lines).strip()
+            current_id = match.group(1)
+            current_lines = []
+            continue
+
+        if current_id:
+            current_lines.append(line)
+
+    if current_id:
+        sections[current_id] = "\n".join(current_lines).strip()
+
     return sections
 
 
