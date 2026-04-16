@@ -44,19 +44,25 @@ func SetCurrent(v string) {
 
 var currentVersion = "dev"
 
-func CheckUpdate() (*ReleaseInfo, bool) {
+// CheckUpdate checks for available updates. If force is true, it bypasses the cache
+// and always fetches the latest release from GitHub.
+func CheckUpdate(force bool) (*ReleaseInfo, bool) {
 	if currentVersion == "dev" || strings.HasSuffix(currentVersion, "-snapshot") {
 		return nil, false
 	}
 
-	state, err := loadState()
-	if err == nil && time.Since(state.LastCheck) < checkInterval {
-		if state.LatestVersion != "" && isNewer(state.LatestVersion, currentVersion) {
-			return &ReleaseInfo{TagName: state.LatestVersion}, true
+	// If not forcing, try to use cached result first
+	if !force {
+		state, err := loadState()
+		if err == nil && time.Since(state.LastCheck) < checkInterval {
+			if state.LatestVersion != "" && isNewer(state.LatestVersion, currentVersion) {
+				return &ReleaseInfo{TagName: state.LatestVersion}, true
+			}
+			return nil, false
 		}
-		return nil, false
 	}
 
+	// Fetch fresh release info
 	release, err := fetchLatestRelease()
 	if err != nil {
 		return nil, false
