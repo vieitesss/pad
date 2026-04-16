@@ -86,19 +86,19 @@ Place it in your repository at the same path. This template defines the structur
 
 This repository includes ready-to-use GitHub Actions workflows:
 
-**Async Daily Reporter** (`.github/workflows/asyncdaily-reporter.yml`)
+**Async Daily Reporter** (`.github/workflows/asyncdaily-reporter.yml.example` → rename to `.yml`)
 - Collects all daily issues from team members
 - Generates a merged report with parking lot items highlighted
 - Closes individual issues after including them in the report
 - Runs weekdays at 10:45 AM UTC (customize the cron schedule as needed)
 
-**Async Daily Template Updater** (`.github/workflows/asyncdaily-updater.yml`)
+**Async Daily Template Updater** (`.github/workflows/asyncdaily-updater.yml.example` → rename to `.yml`)
 - Automatically updates the issue template date to tomorrow
 - Runs daily at 12:00 PM UTC
 
 To use these workflows:
 
-1. Copy the workflow files from `.github/workflows/` to your repository
+1. Copy the workflow files from `.github/workflows/` to your repository (remove `.example` extension)
 2. Copy the scripts from `.github/scripts/` to your repository
 3. Set up repository variables (optional):
    - `ASYNC_DAILY_LABEL`: Label for individual daily issues (default: `async-daily`)
