@@ -1,6 +1,6 @@
 #!/bin/sh
 # pad installer script
-# Usage: curl -fsSL https://raw.githubusercontent.com/prefapp/pad/main/scripts/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/vieitesss/pad/main/scripts/install.sh | sh
 
 set -e
 
@@ -42,7 +42,7 @@ esac
 
 # Get latest release version
 echo "Fetching latest release..."
-LATEST=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+LATEST=$(curl -fsSL -H "User-Agent: pad-installer" "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
 if [ -z "$LATEST" ]; then
     echo "Error: Could not determine latest release" >&2
