@@ -5,12 +5,15 @@ import (
 	"os"
 
 	"github.com/prefapp/pad/cmd"
+	"github.com/prefapp/pad/internal/version"
 )
 
-var version = "dev"
+var buildVersion = "dev"
 
 func main() {
-	if err := cmd.NewRootCmd(version).Execute(); err != nil {
+	version.SetCurrent(buildVersion)
+
+	if err := cmd.NewRootCmd(buildVersion).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
