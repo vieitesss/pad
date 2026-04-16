@@ -13,7 +13,7 @@ import (
 
 const (
 	githubRepo    = "vieitesss/pad"
-	checkInterval = 24 * time.Hour
+	checkInterval = 1 * time.Hour
 )
 
 type ReleaseAsset struct {
