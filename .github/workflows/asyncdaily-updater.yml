@@ -1,0 +1,61 @@
+name: Async Daily Template Updater
+
+on:
+  # Run every day at 12:00 PM UTC
+  schedule:
+    - cron: '0 12 * * *'
+
+  # Allow manual execution for testing
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-template-date:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update template date
+        run: |
+          # Get tomorrow's date in YYYY/MM/DD format
+          TOMORROW=$(date -d '+1 day' +"%Y/%m/%d")
+          echo "TOMORROW=$TOMORROW" >> $GITHUB_ENV
+
+          echo "Updating template date to: $TOMORROW"
+
+          # Path to the template file
+          TEMPLATE_FILE=".github/ISSUE_TEMPLATE/async-daily.yml"
+
+          # Check if template exists
+          if [ ! -f "$TEMPLATE_FILE" ]; then
+            echo "Template file not found: $TEMPLATE_FILE"
+            exit 0
+          fi
+
+          # Update the title line with tomorrow's date
+          # Using sed to replace the date in the title line
+          sed -i "s|title: '\[Async Daily\] \[.*\]'|title: '[Async Daily] [$TOMORROW]'|g" "$TEMPLATE_FILE"
+
+          echo "Template updated successfully"
+          cat "$TEMPLATE_FILE" | grep "title:" || echo "No title line found"
+
+      - name: Commit and push changes
+        run: |
+          # Check if there are changes
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git config user.name "GitHub Action"
+          git config user.email "actions@github.com"
+
+          # Stage, commit and push
+          git add .github/ISSUE_TEMPLATE/async-daily.yml
+          git commit -m "chore: update async daily template date to $TOMORROW"
+          git push origin ${{ github.ref_name }}
+
+          echo "Changes pushed successfully"

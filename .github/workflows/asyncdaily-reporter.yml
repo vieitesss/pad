@@ -1,0 +1,111 @@
+name: Async Daily Reporter
+
+on:
+  # Run every weekday at 10:00 AM UTC (adjust timezone as needed)
+  schedule:
+    - cron: '45 10 * * 1-5'
+
+  # Allow manual execution with date parameter
+  workflow_dispatch:
+    inputs:
+      report_date:
+        description: 'Date for the report (YYYY-MM-DD). Leave empty for today.'
+        required: false
+        type: string
+
+jobs:
+  generate-asyncdaily-report:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Collect async daily issues and send report
+        id: generate_report
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { collectAsyncDailyIssues } = require('./.github/scripts/collect-asyncdaily-issues.js');
+            const { enrichUserInfo } = require('./.github/scripts/enrich-user-info.js');
+            const { generateReports } = require('./.github/scripts/generate-reports.js');
+            const { createReportIssue } = require('./.github/scripts/create-report-issue.js');
+            const { closeIndividualIssues } = require('./.github/scripts/close-individual-issues.js');
+
+            // Collect async daily issues
+            const reportDate = context.payload.inputs?.report_date;
+            const { asyncDailyIssues, dateStr, titleDateStr } = await collectAsyncDailyIssues(github, context, reportDate, '${{ vars.ASYNC_DAILY_LABEL || ''async-daily'' }}');
+
+            if (asyncDailyIssues.length === 0) {
+              console.log('No async daily issues found for this date. Skipping report.');
+              core.setOutput('has_issues', 'false');
+              return;
+            }
+
+            core.setOutput('has_issues', 'true');
+
+            // Enrich issues with user display names
+            let enrichedIssues = await enrichUserInfo(github, asyncDailyIssues);
+
+            // Sort issues alphabetically by user handle to ensure predictable order
+            enrichedIssues = enrichedIssues.sort((a, b) => {
+              return a.user.login.localeCompare(b.user.login);
+            });
+
+            // Create report issue first to get its URL
+            const reportIssue = await createReportIssue(github, context, titleDateStr, 'Generating report...', '${{ vars.ASYNC_DAILY_REPORT_LABEL || ''async-daily/report'' }}');
+
+            // Generate reports with the report issue URL
+            const { markdownBody, parkingLotItems } = generateReports(enrichedIssues, titleDateStr, context, reportIssue.html_url);
+
+            // Update the report issue with the actual markdown content
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: reportIssue.number,
+              body: markdownBody
+            });
+
+            console.log('Report issue updated with final content');
+
+            // Close individual issues after the report is generated
+            await closeIndividualIssues(github, context, enrichedIssues, reportIssue.html_url);
+
+            core.setOutput('report_issue_number', reportIssue.number);
+            core.setOutput('report_issue_url', reportIssue.html_url);
+
+            // Generate summary content
+            let summaryContent = `👉 [**Full Daily Report**](${reportIssue.html_url}) 👈\n\n`;
+
+            if (parkingLotItems.length > 0) {
+              summaryContent += `🚨 **Parking lot requests:** ${parkingLotItems.length}\n\n`;
+            }
+
+            summaryContent += `---\n\n`;
+            summaryContent += `## Team Members\n\n`;
+
+            for (const issue of enrichedIssues) {
+              const displayName = issue.user.displayName || issue.user.login;
+              summaryContent += `- ${displayName} (@${issue.user.login}) - [#${issue.number}](${issue.html_url})\n`;
+            }
+
+            // Write summary to file
+            const fs = require('fs');
+            const summaryPath = `${process.env.GITHUB_WORKSPACE}/asyncdaily-summary.md`;
+            fs.writeFileSync(summaryPath, summaryContent);
+            console.log(`Summary written to: ${summaryPath}`);
+
+      - name: Publish summary
+        if: steps.generate_report.outputs.has_issues == 'true'
+        run: |
+          cat asyncdaily-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set report today date
+        if: steps.generate_report.outputs.has_issues == 'true' && github.event.inputs.report_date == ''
+        id: set_date
+        run: |
+          if [ -z "${{ github.event.inputs.report_date }}" ]; then
+            echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          else
+            echo "date=${{ github.event.inputs.report_date }}" >> $GITHUB_OUTPUT
+          fi

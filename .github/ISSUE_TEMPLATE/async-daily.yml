@@ -1,0 +1,79 @@
+name: Async Daily
+about: Daily async standup update
+title: "[Async Daily] [YYYY/MM/DD]"
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Daily Standup Update
+
+  - type: textarea
+    id: yesterday
+    attributes:
+      label: "✅ What did you do yesterday?"
+      description: Describe what you accomplished yesterday
+      placeholder: |
+        - Completed feature X
+        - Reviewed PR #123
+        - Fixed bug in Y
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: "🎯 What will you do today?"
+      description: Outline your plans for today
+      placeholder: |
+        - Start work on feature Z
+        - Attend team meeting
+        - Update documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: blockers
+    attributes:
+      label: "🚧 Any blockers?"
+      description: Mention any obstacles you're facing (optional)
+      placeholder: |
+        - Waiting for code review
+        - Need access to X resource
+        - Blocked by external dependency
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: parking_lot
+    attributes:
+      label: "🚨 Do you request a Parking Lot or escalation?"
+      description: Check if you need team discussion or escalation
+      options:
+        - label: "✅ Yes, I need a Parking Lot or escalation"
+    validations:
+      required: false
+
+  - type: textarea
+    id: parking_details
+    attributes:
+      label: "📝 Parking Lot Details"
+      description: Describe what you need to discuss (only used if escalation requested)
+      placeholder: |
+        - Need decision on architecture approach
+        - Clarification on requirements
+        - Resource constraints
+    validations:
+      required: false
+
+  - type: textarea
+    id: comments
+    attributes:
+      label: "💬 Additional Comments"
+      description: Any other notes or context for the team (optional)
+      placeholder: |
+        - Working remotely today
+        - Will be offline after 3pm
+        - Taking Friday off
+    validations:
+      required: false
