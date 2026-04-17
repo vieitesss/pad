@@ -330,7 +330,7 @@ func dateFromTitle(title, prefix, suffix string) (string, bool) {
 }
 
 func renderSection(field issueform.Field, body string) string {
-	heading := "## " + field.Label
+	heading := "### " + field.Label
 	if field.ID != "" {
 		heading += " <!-- pad:id:" + field.ID + " -->"
 	}
@@ -515,7 +515,7 @@ func buildCarryoverBody(sections []parsedSection, used map[int]bool) string {
 func normalizeSectionBody(body string) string {
 	trimmed := strings.TrimSpace(body)
 	if trimmed == "" {
-		return "_None._"
+		return "_No response_"
 	}
 
 	return trimmed

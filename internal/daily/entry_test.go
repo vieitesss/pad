@@ -185,10 +185,10 @@ func TestBodyRendersTemplateSectionsAndHiddenIDs(t *testing.T) {
 
 	checks := []string{
 		"## Daily Standup Update",
-		"## ✅ What did you do yesterday? <!-- pad:id:yesterday -->",
-		"## 🎯 What will you do today? <!-- pad:id:today -->",
-		"## 🚧 Any blockers? <!-- pad:id:blockers -->",
-		"_None._",
+		"### ✅ What did you do yesterday? <!-- pad:id:yesterday -->",
+		"### 🎯 What will you do today? <!-- pad:id:today -->",
+		"### 🚧 Any blockers? <!-- pad:id:blockers -->",
+		"_No response_",
 	}
 
 	for _, check := range checks {
