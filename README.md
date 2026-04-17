@@ -15,6 +15,10 @@ Current first iteration focuses on the fastest useful workflow:
 - preview the rendered GitHub issue body with `pad show` or `pad create --dry-run`
 - create the GitHub issue in your configured repository with `pad create`
 
+<p align="center">
+  <img src="assets/example.png" alt="pad TUI example showing the split editor with template fields and live preview">
+</p>
+
 ## Installation
 
 ### Quick Install (Recommended)
