@@ -1,6 +1,7 @@
 package daily
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -42,7 +43,17 @@ type parsedSection struct {
 	Body    string
 }
 
+type bodyMetadata struct {
+	Fields []bodyMetadataField `json:"fields"`
+}
+
+type bodyMetadataField struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
 var headingPattern = regexp.MustCompile(`^#{2,6}\s*(.*?)\s*(?:<!--\s*pad:id:([A-Za-z0-9._-]+)\s*-->)?\s*$`)
+var bodyMetadataPattern = regexp.MustCompile(`(?m)^<!--\s*pad:fields:(.*?)\s*-->$`)
 
 var legacyFieldAliases = map[string][]string{
 	"yesterday":       {"✅ What did you do yesterday?"},
@@ -223,7 +234,10 @@ func DateFromReportTitle(title string) (string, bool) {
 }
 
 func (e Entry) Body() string {
-	blocks := make([]string, 0, len(e.Template.Fields))
+	blocks := make([]string, 0, len(e.Template.Fields)+1)
+	if metadata := renderBodyMetadata(e.Template); metadata != "" {
+		blocks = append(blocks, metadata)
+	}
 	for _, field := range e.Template.Fields {
 		switch field.Type {
 		case issueform.FieldMarkdown:
@@ -330,11 +344,27 @@ func dateFromTitle(title, prefix, suffix string) (string, bool) {
 }
 
 func renderSection(field issueform.Field, body string) string {
-	heading := "### " + field.Label
-	if field.ID != "" {
-		heading += " <!-- pad:id:" + field.ID + " -->"
+	return "### " + field.Label + "\n" + body
+}
+
+func renderBodyMetadata(template issueform.Template) string {
+	metadata := bodyMetadata{Fields: make([]bodyMetadataField, 0, len(template.Fields))}
+	for _, field := range template.EditableFields() {
+		if field.ID == "" || strings.TrimSpace(field.Label) == "" {
+			continue
+		}
+		metadata.Fields = append(metadata.Fields, bodyMetadataField{ID: field.ID, Label: field.Label})
 	}
-	return heading + "\n" + body
+	if len(metadata.Fields) == 0 {
+		return ""
+	}
+
+	encoded, err := json.Marshal(metadata)
+	if err != nil {
+		return ""
+	}
+
+	return "<!-- pad:fields:" + string(encoded) + " -->"
 }
 
 func renderCheckboxBody(field issueform.Field, checked bool) string {
@@ -354,9 +384,13 @@ func parseSections(body string, template issueform.Template) []parsedSection {
 	current := parsedSection{}
 	active := false
 	allowedHeadings := collectAllowedHeadings(template)
+	metadataIDs := parseBodyMetadata(body)
 
 	for _, line := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
 		heading, id, ok := parseHeading(line)
+		if ok && id == "" {
+			id = metadataIDs[normalizeHeading(heading)]
+		}
 		if ok && shouldStartSection(heading, id, allowedHeadings) {
 			if active {
 				current.Body = strings.TrimSpace(current.Body)
@@ -384,6 +418,28 @@ func parseSections(body string, template issueform.Template) []parsedSection {
 	}
 
 	return sections
+}
+
+func parseBodyMetadata(body string) map[string]string {
+	matches := bodyMetadataPattern.FindAllStringSubmatch(body, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	metadata := bodyMetadata{}
+	if err := json.Unmarshal([]byte(matches[0][1]), &metadata); err != nil {
+		return nil
+	}
+
+	idsByHeading := make(map[string]string, len(metadata.Fields))
+	for _, field := range metadata.Fields {
+		if field.ID == "" || strings.TrimSpace(field.Label) == "" {
+			continue
+		}
+		idsByHeading[normalizeHeading(field.Label)] = field.ID
+	}
+
+	return idsByHeading
 }
 
 func collectAllowedHeadings(template issueform.Template) map[string]struct{} {

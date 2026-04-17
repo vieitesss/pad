@@ -31,8 +31,9 @@ func TestPreviewContentContainsRenderedTemplate(t *testing.T) {
 
 	checks := []string{
 		"[Daily Update] [2026/04/16]",
-		"## ✅ What did you do yesterday? <!-- pad:id:yesterday -->",
-		"## 🎯 What will you do today? <!-- pad:id:today -->",
+		`<!-- pad:fields:{"fields":[{"id":"yesterday","label":"✅ What did you do yesterday?"},{"id":"today","label":"🎯 What will you do today?"},{"id":"parking_lot","label":"🚨 Do you request a Parking Lot or escalation?"}]} -->`,
+		"### ✅ What did you do yesterday?",
+		"### 🎯 What will you do today?",
 	}
 
 	for _, check := range checks {

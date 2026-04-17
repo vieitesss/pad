@@ -111,7 +111,28 @@ _None._
 	}
 }
 
-func TestEntryFromIssueBodyUsesHiddenIDsWhenLabelsChange(t *testing.T) {
+func TestEntryFromIssueBodyUsesMetadataWhenLabelsChange(t *testing.T) {
+	template := mustTemplateWithRenamedYesterday(t)
+	body := `<!-- pad:fields:{"fields":[{"id":"yesterday","label":"Yesterday Work"},{"id":"today","label":"Current Focus"}]} -->
+
+## Yesterday Work
+- Reviewed PR #42
+
+## Current Focus
+- Continue feature work`
+
+	got := EntryFromIssueBody("2026-04-17", template, body)
+
+	if got.Text("yesterday") != "- Reviewed PR #42" {
+		t.Fatalf("unexpected yesterday %q", got.Text("yesterday"))
+	}
+
+	if got.Text("today") != "- Continue feature work" {
+		t.Fatalf("unexpected today %q", got.Text("today"))
+	}
+}
+
+func TestEntryFromIssueBodyStillParsesInlineIDsWhenLabelsChange(t *testing.T) {
 	template := mustTemplateWithRenamedYesterday(t)
 	body := `## Yesterday Work <!-- pad:id:yesterday -->
 - Reviewed PR #42
@@ -132,13 +153,15 @@ func TestEntryFromIssueBodyUsesHiddenIDsWhenLabelsChange(t *testing.T) {
 
 func TestEntryFromIssueBodyAddsCarryoverForRemovedFields(t *testing.T) {
 	template := mustTemplateWithRenamedYesterday(t)
-	body := `## Yesterday Work <!-- pad:id:yesterday -->
+	body := `<!-- pad:fields:{"fields":[{"id":"yesterday","label":"Yesterday Work"},{"id":"today","label":"Current Focus"},{"id":"comments","label":"💬 Additional Comments"}]} -->
+
+## Yesterday Work
 - Reviewed PR #42
 
-## Current Focus <!-- pad:id:today -->
+## Current Focus
 - Continue feature work
 
-## 💬 Additional Comments <!-- pad:id:comments -->
+## 💬 Additional Comments
 - Offline after 17:00`
 
 	got := EntryFromIssueBody("2026-04-17", template, body)
@@ -157,16 +180,18 @@ func TestEntryFromIssueBodyAddsCarryoverForRemovedFields(t *testing.T) {
 
 func TestEntryFromIssueBodyKeepsMarkdownHeadingsInsideResponseBody(t *testing.T) {
 	template := mustTemplate(t)
-	body := `## ✅ What did you do yesterday? <!-- pad:id:yesterday -->
+	body := `<!-- pad:fields:{"fields":[{"id":"yesterday","label":"✅ What did you do yesterday?"},{"id":"today","label":"🎯 What will you do today?"},{"id":"blockers","label":"🚧 Any blockers?"}]} -->
+
+## ✅ What did you do yesterday?
 - Reviewed PR #42
 
-## 🎯 What will you do today? <!-- pad:id:today -->
+## 🎯 What will you do today?
 - Continue feature work
 
 ### Notes
 - Include nested heading in response
 
-## 🚧 Any blockers? <!-- pad:id:blockers -->
+## 🚧 Any blockers?
 _None._`
 
 	got := EntryFromIssueBody("2026-04-17", template, body)
@@ -176,7 +201,7 @@ _None._`
 	}
 }
 
-func TestBodyRendersTemplateSectionsAndHiddenIDs(t *testing.T) {
+func TestBodyRendersTemplateSectionsAndMetadata(t *testing.T) {
 	entry := New("2026-04-16", mustTemplate(t))
 	entry.SetText("yesterday", "- Reviewed PR #42")
 	entry.SetText("today", "- Continue feature work")
@@ -184,10 +209,11 @@ func TestBodyRendersTemplateSectionsAndHiddenIDs(t *testing.T) {
 	body := entry.Body()
 
 	checks := []string{
+		`<!-- pad:fields:{"fields":[{"id":"yesterday","label":"✅ What did you do yesterday?"},{"id":"today","label":"🎯 What will you do today?"},{"id":"blockers","label":"🚧 Any blockers?"},{"id":"parking_lot","label":"🚨 Do you request a Parking Lot or escalation?"},{"id":"parking_details","label":"📝 Parking Lot Details"},{"id":"comments","label":"💬 Additional Comments"}]} -->`,
 		"## Daily Standup Update",
-		"### ✅ What did you do yesterday? <!-- pad:id:yesterday -->",
-		"### 🎯 What will you do today? <!-- pad:id:today -->",
-		"### 🚧 Any blockers? <!-- pad:id:blockers -->",
+		"### ✅ What did you do yesterday?",
+		"### 🎯 What will you do today?",
+		"### 🚧 Any blockers?",
 		"_No response_",
 	}
 
