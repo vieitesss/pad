@@ -378,22 +378,71 @@ def extract_field_section(
     return extract_section(body, patterns, clean_empty=clean_empty)
 
 
+def parse_body_metadata(body: str) -> dict[str, str]:
+    """Extract field ID mapping from <!-- pad:fields:{...} --> metadata."""
+    metadata_pattern = re.compile(r"(?m)^<!--\s*pad:fields:(\{.*?\})\s*-->$")
+    match = metadata_pattern.search(body)
+    if not match:
+        return {}
+
+    try:
+        metadata = json.loads(match.group(1))
+        fields = metadata.get("fields", [])
+        return {
+            normalize_heading(f.get("label", "")): f.get("id", "")
+            for f in fields
+            if f.get("id") and f.get("label")
+        }
+    except json.JSONDecodeError:
+        return {}
+
+
+def normalize_heading(heading: str) -> str:
+    """Normalize heading text for comparison (lowercase, no extra spaces)."""
+    return re.sub(r"\s+", " ", heading.strip().lower())
+
+
 def split_sections_by_field_id(body: str) -> dict[str, str]:
     sections: dict[str, str] = {}
     current_id = ""
     current_lines: list[str] = []
-    heading_pattern = re.compile(
+
+    # Build heading -> ID mapping from metadata (new format)
+    metadata_ids = parse_body_metadata(body)
+
+    # Pattern for inline IDs (legacy format fallback)
+    inline_id_pattern = re.compile(
         r"^#{2,6} .*?<!--\s*pad:id:([A-Za-z0-9._-]+)\s*-->\s*$"
     )
 
+    # Pattern to extract heading text without inline ID comments
+    heading_text_pattern = re.compile(r"^#{2,6}\s*(.*?)(?:<!--.*?-->)?\s*$")
+
     for line in body.splitlines():
-        match = heading_pattern.match(line.strip())
-        if match:
+        stripped = line.strip()
+
+        # Check for inline ID (legacy format)
+        inline_match = inline_id_pattern.match(stripped)
+        if inline_match:
             if current_id:
                 sections[current_id] = "\n".join(current_lines).strip()
-            current_id = match.group(1)
+            current_id = inline_match.group(1)
             current_lines = []
             continue
+
+        # Check for heading that might have metadata ID
+        heading_match = heading_text_pattern.match(stripped)
+        if heading_match:
+            heading_text = heading_match.group(1).strip()
+            normalized = normalize_heading(heading_text)
+            field_id = metadata_ids.get(normalized)
+
+            if field_id:
+                if current_id:
+                    sections[current_id] = "\n".join(current_lines).strip()
+                current_id = field_id
+                current_lines = []
+                continue
 
         if current_id:
             current_lines.append(line)
