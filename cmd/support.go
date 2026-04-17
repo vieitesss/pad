@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vieitesss/pad/internal/appfs"
@@ -106,4 +107,21 @@ func createIssueFromEntry(ctx context.Context, env *commandEnv, entry daily.Entr
 	}
 
 	return env.gh.CreateIssue(ctx, env.cfg.GitHubRepo, title, entry.Body(), env.cfg.Labels)
+}
+
+func reportLabels(labels []string) []string {
+	for _, label := range labels {
+		label = strings.TrimSpace(label)
+		if label == "" {
+			continue
+		}
+
+		if strings.HasSuffix(label, "/member") {
+			return []string{strings.TrimSuffix(label, "/member") + "/report"}
+		}
+
+		return []string{label + "/report"}
+	}
+
+	return []string{"daily-update/report"}
 }

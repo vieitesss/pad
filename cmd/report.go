@@ -30,7 +30,7 @@ func newReportCmd() *cobra.Command {
 			}
 
 			if list {
-				issues, err := env.gh.ListReportIssues(ctx, env.cfg.GitHubRepo, limit)
+				issues, err := env.gh.ListReportIssues(ctx, env.cfg.GitHubRepo, reportLabels(env.cfg.Labels), limit)
 				if err != nil {
 					return err
 				}
@@ -54,7 +54,7 @@ func newReportCmd() *cobra.Command {
 				return err
 			}
 
-			issue, err := env.gh.FindReportIssueByDate(ctx, env.cfg.GitHubRepo, resolvedDate)
+			issue, err := env.gh.FindReportIssueByDate(ctx, env.cfg.GitHubRepo, reportLabels(env.cfg.Labels), resolvedDate)
 			if err != nil {
 				if errors.Is(err, ghcli.ErrIssueNotFound) {
 					return fmt.Errorf("no daily update report issue found for %s", resolvedDate)
