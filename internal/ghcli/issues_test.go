@@ -84,7 +84,7 @@ func TestListReportIssuesDoesNotUseAuthorFilter(t *testing.T) {
 		]`), nil
 	})
 
-	issues, err := client.ListReportIssues(context.Background(), "prefapp/doc-daily-updates", 10)
+	issues, err := client.ListReportIssues(context.Background(), "prefapp/doc-daily-updates", []string{"daily-update/report"}, 10)
 	if err != nil {
 		t.Fatalf("list report issues: %v", err)
 	}
@@ -117,13 +117,38 @@ func TestFindReportIssueByDateLoadsIssueBody(t *testing.T) {
 		}
 	})
 
-	issue, err := client.FindReportIssueByDate(context.Background(), "prefapp/doc-daily-updates", "2026-04-16")
+	issue, err := client.FindReportIssueByDate(context.Background(), "prefapp/doc-daily-updates", []string{"daily-update/report"}, "2026-04-16")
 	if err != nil {
 		t.Fatalf("find report issue: %v", err)
 	}
 
 	if issue.Body != "team report body" {
 		t.Fatalf("expected team report body, got %q", issue.Body)
+	}
+}
+
+func TestFindReportIssueByDateUsesProvidedReportLabel(t *testing.T) {
+	client := newForTests(func(_ context.Context, args ...string) ([]byte, error) {
+		joined := strings.Join(args, " ")
+		switch {
+		case strings.Contains(joined, "issue list"):
+			if !strings.Contains(joined, "--label async-daily/report") {
+				t.Fatalf("expected async report label filter, got %q", joined)
+			}
+			return []byte(`[
+				{"number":482,"title":"[Daily Report] 2026/04/17","url":"https://example.com/482","state":"OPEN","createdAt":"2026-04-17T11:07:03Z","updatedAt":"2026-04-17T11:07:04Z"}
+			]`), nil
+		case strings.Contains(joined, "issue view 482"):
+			return []byte(`{"number":482,"title":"[Daily Report] 2026/04/17","body":"team report body","url":"https://example.com/482","state":"OPEN","createdAt":"2026-04-17T11:07:03Z","updatedAt":"2026-04-17T11:07:04Z"}`), nil
+		default:
+			t.Fatalf("unexpected gh command %q", joined)
+			return nil, nil
+		}
+	})
+
+	_, err := client.FindReportIssueByDate(context.Background(), "prefapp/doc-asyncdaily", []string{"async-daily/report"}, "2026-04-17")
+	if err != nil {
+		t.Fatalf("find report issue: %v", err)
 	}
 }
 

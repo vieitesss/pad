@@ -182,23 +182,23 @@ func (c *Client) LatestDailyUpdateIssue(ctx context.Context, repo string, labels
 	return c.ViewIssue(ctx, repo, issues[0].Number)
 }
 
-func (c *Client) ListReportIssues(ctx context.Context, repo string, limit int) ([]ReportIssue, error) {
-	return c.searchIssues(ctx, repo, "", []string{"daily-update/report"}, limit, "")
+func (c *Client) ListReportIssues(ctx context.Context, repo string, labels []string, limit int) ([]ReportIssue, error) {
+	return c.searchIssues(ctx, repo, "", labels, limit, "")
 }
 
-func (c *Client) FindReportIssueByDate(ctx context.Context, repo string, date string) (ReportIssue, error) {
+func (c *Client) FindReportIssueByDate(ctx context.Context, repo string, labels []string, date string) (ReportIssue, error) {
 	title, err := daily.ReportTitleForDate(date)
 	if err != nil {
 		return ReportIssue{}, err
 	}
 
-	issues, err := c.searchIssues(ctx, repo, "", []string{"daily-update/report"}, 5, fmt.Sprintf("%q in:title", title))
+	issues, err := c.searchIssues(ctx, repo, "", labels, 5, fmt.Sprintf("%q in:title", title))
 	if err != nil {
 		return ReportIssue{}, err
 	}
 
 	if len(issues) == 0 {
-		issues, err = c.searchIssues(ctx, repo, "", []string{"daily-update/report"}, 10, fmt.Sprintf("created:%s", date))
+		issues, err = c.searchIssues(ctx, repo, "", labels, 10, fmt.Sprintf("created:%s", date))
 		if err != nil {
 			return ReportIssue{}, err
 		}
