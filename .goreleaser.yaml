@@ -24,8 +24,6 @@ builds:
 
 archives:
   - id: pad
-    builds:
-      - pad
     formats:
       - tar.gz
     format_overrides:
