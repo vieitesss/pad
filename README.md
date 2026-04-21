@@ -199,6 +199,8 @@ Open the daily update editor for today. The left pane shows the template fields,
 ./pad create
 ```
 
+Inside the editor, use `tab` / `shift+tab` to switch fields, `ctrl+c` to copy the current field, `ctrl+x` to cut the current field, and `ctrl+v` to paste. On macOS terminals, `cmd` shortcuts usually stay handled by the terminal itself rather than reaching the TUI.
+
 Repeat from your latest GitHub daily update issue into today's editor and create a new issue:
 
 ```bash
