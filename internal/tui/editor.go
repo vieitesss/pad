@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,6 +15,8 @@ import (
 )
 
 var ErrCanceled = errors.New("edit canceled")
+
+var writeClipboard = clipboard.WriteAll
 
 type editorMode int
 
@@ -43,20 +46,24 @@ var (
 )
 
 type model struct {
-	mode           editorMode
-	entry          daily.Entry
-	fields         []issueform.Field
-	index          int
-	editor         textarea.Model
-	preview        viewport.Model
-	width          int
-	height         int
-	message        string
-	messageIsError bool
-	confirm        bool
-	submitted      bool
-	canceled       bool
-	result         daily.Entry
+	mode             editorMode
+	entry            daily.Entry
+	fields           []issueform.Field
+	index            int
+	editor           textarea.Model
+	preview          viewport.Model
+	width            int
+	height           int
+	message          string
+	messageIsError   bool
+	clipboard        string
+	clipboardSynced  bool
+	clipboardMessage string
+	clipboardCount   int
+	confirm          bool
+	submitted        bool
+	canceled         bool
+	result           daily.Entry
 }
 
 func Edit(entry daily.Entry) (daily.Entry, error) {
@@ -131,8 +138,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		m.clearClipboardMessageOnKey(msg)
+
 		if m.confirm {
 			return m.updateConfirmation(msg)
+		}
+
+		if m.currentFieldIsText() {
+			switch msg.String() {
+			case "ctrl+c":
+				m.copyCurrentField(false)
+				return m, nil
+			case "ctrl+x":
+				m.copyCurrentField(true)
+				return m, nil
+			case "ctrl+v":
+				if !m.clipboardSynced && m.clipboard != "" {
+					m.pasteClipboard()
+					return m, nil
+				}
+			}
 		}
 
 		switch msg.String() {
@@ -187,8 +212,7 @@ func (m model) updateConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "y", "enter":
 		entry := m.finalEntry()
 		if err := entry.ValidateForCreate(); err != nil {
-			m.message = err.Error()
-			m.messageIsError = true
+			m.setMessage(err.Error(), true)
 			m.confirm = false
 			m.refreshPreview()
 			return m, nil
@@ -211,14 +235,12 @@ func (m model) handlePrimaryAction() (tea.Model, tea.Cmd) {
 	}
 
 	if err := entry.ValidateForCreate(); err != nil {
-		m.message = err.Error()
-		m.messageIsError = true
+		m.setMessage(err.Error(), true)
 		m.refreshPreview()
 		return m, nil
 	}
 
-	m.message = ""
-	m.messageIsError = false
+	m.setMessage("", false)
 	m.confirm = true
 	m.refreshPreview()
 	return m, nil
@@ -349,6 +371,16 @@ func (m model) footerView() string {
 		helpDividerStyle.Render("  •  "),
 		helpItem(cancelKeyStyle, "esc", "cancel"),
 	))
+	if m.currentFieldIsText() {
+		lines = append(lines, lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			helpItem(secondaryKeyStyle, "ctrl+c", "copy field"),
+			helpDividerStyle.Render("  •  "),
+			helpItem(secondaryKeyStyle, "ctrl+x", "cut field"),
+			helpDividerStyle.Render("  •  "),
+			helpItem(secondaryKeyStyle, "ctrl+v", "paste"),
+		))
+	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
@@ -411,6 +443,79 @@ func (m *model) refreshPreview() {
 		content = lipgloss.NewStyle().Width(m.preview.Width).Render(content)
 	}
 	m.preview.SetContent(content)
+}
+
+func (m *model) copyCurrentField(clear bool) {
+	value := m.editor.Value()
+	if strings.TrimSpace(value) == "" {
+		m.setMessage("Current field is empty.", false)
+		return
+	}
+
+	m.clipboard = value
+
+	action := "Copied"
+	if clear {
+		action = "Cut"
+		m.editor.SetValue("")
+		m.persistCurrentField()
+		m.refreshPreview()
+	}
+
+	m.messageIsError = false
+	if err := writeClipboard(value); err != nil {
+		m.clipboardSynced = false
+		m.setClipboardActionMessage(fmt.Sprintf("%s current field to pad clipboard only.", action))
+		return
+	}
+
+	m.clipboardSynced = true
+	m.setClipboardActionMessage(fmt.Sprintf("%s current field to clipboard.", action))
+}
+
+func (m *model) pasteClipboard() {
+	if m.clipboard == "" {
+		m.setMessage("Pad clipboard is empty.", false)
+		return
+	}
+
+	m.editor.InsertString(m.clipboard)
+	m.persistCurrentField()
+	m.refreshPreview()
+	m.setMessage("Pasted clipboard into current field.", false)
+}
+
+func (m *model) setMessage(message string, isError bool) {
+	m.message = message
+	m.messageIsError = isError
+	m.clipboardMessage = ""
+	m.clipboardCount = 0
+}
+
+func (m *model) clearClipboardMessageOnKey(msg tea.KeyMsg) {
+	if m.clipboardMessage == "" {
+		return
+	}
+	if msg.String() == "ctrl+c" || msg.String() == "ctrl+x" {
+		return
+	}
+
+	m.setMessage("", false)
+}
+
+func (m *model) setClipboardActionMessage(base string) {
+	m.messageIsError = false
+	if m.clipboardMessage == base {
+		m.clipboardCount++
+	} else {
+		m.clipboardMessage = base
+		m.clipboardCount = 1
+	}
+
+	m.message = base
+	if m.clipboardCount > 1 {
+		m.message = fmt.Sprintf("%s (%d)", base, m.clipboardCount)
+	}
 }
 
 func previewContent(entry daily.Entry) string {
