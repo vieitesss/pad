@@ -33,7 +33,10 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	fmt.Println("Checking for updates...")
 
 	// Force a fresh check, bypassing the cache
-	release, hasUpdate := version.CheckUpdate(true)
+	release, hasUpdate, err := version.CheckUpdate(true)
+	if err != nil {
+		return fmt.Errorf("check for updates: %w", err)
+	}
 	if !hasUpdate {
 		green := lipgloss.NewStyle().Foreground(lipgloss.Color("#22C55E"))
 		fmt.Println(green.Render("You're already on the latest version!"))

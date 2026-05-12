@@ -40,7 +40,7 @@ func NewRootCmd(version string) *cobra.Command {
 }
 
 func showUpdateNotice() {
-	release, hasUpdate := version.CheckUpdate(false)
+	release, hasUpdate, _ := version.CheckUpdate(false)
 	if !hasUpdate {
 		return
 	}
