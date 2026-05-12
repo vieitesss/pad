@@ -107,6 +107,16 @@ func (c *Client) CreateIssue(ctx context.Context, repo, title, body string, labe
 	return daily.IssueRef{Number: issueNumber, URL: issueURL}, nil
 }
 
+func (c *Client) UpdateIssue(ctx context.Context, repo string, number int, title, body string) error {
+	args := []string{"issue", "edit", strconv.Itoa(number), "--repo", repo, "--title", title, "--body", body}
+	output, err := c.run(ctx, args...)
+	if err != nil {
+		return fmt.Errorf("update GitHub issue: %s", strings.TrimSpace(string(output)))
+	}
+
+	return nil
+}
+
 func (c *Client) ReadRepositoryFile(ctx context.Context, repo, filePath string) ([]byte, error) {
 	owner, name, err := splitRepo(repo)
 	if err != nil {

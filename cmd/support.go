@@ -109,6 +109,15 @@ func createIssueFromEntry(ctx context.Context, env *commandEnv, entry daily.Entr
 	return env.gh.CreateIssue(ctx, env.cfg.GitHubRepo, title, entry.Body(), env.cfg.Labels)
 }
 
+func updateIssueFromEntry(ctx context.Context, env *commandEnv, number int, entry daily.Entry) error {
+	title, err := entry.Title()
+	if err != nil {
+		return err
+	}
+
+	return env.gh.UpdateIssue(ctx, env.cfg.GitHubRepo, number, title, entry.Body())
+}
+
 func reportLabels(labels []string) []string {
 	for _, label := range labels {
 		label = strings.TrimSpace(label)

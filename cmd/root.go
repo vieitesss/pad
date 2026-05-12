@@ -31,6 +31,7 @@ func NewRootCmd(version string) *cobra.Command {
 	rootCmd.AddCommand(newRepeatCmd())
 	rootCmd.AddCommand(newShowCmd())
 	rootCmd.AddCommand(newCreateCmd())
+	rootCmd.AddCommand(newEditCmd())
 	rootCmd.AddCommand(newListCmd())
 	rootCmd.AddCommand(newReportCmd())
 	rootCmd.AddCommand(newUpgradeCmd())
