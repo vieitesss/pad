@@ -42,9 +42,18 @@ esac
 
 # Get latest release version
 echo "Fetching latest release..."
-LATEST=$(curl -fsSL -H "User-Agent: pad-installer" "https://api.github.com/repos/$REPO/releases/latest" | sed -E 's/.*"tag_name":"([^"]+)".*/\1/')
+if command -v gh >/dev/null 2>&1; then
+    LATEST=$(gh release view --repo "$REPO" --json tagName --jq .tagName 2>/dev/null || true)
+fi
 
 if [ -z "$LATEST" ]; then
+    LATEST_URL=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest")
+    LATEST=${LATEST_URL##*/}
+    LATEST=${LATEST%%\?*}
+    LATEST=${LATEST%%#*}
+fi
+
+if [ -z "$LATEST" ] || [ "$LATEST" = "latest" ]; then
     echo "Error: Could not determine latest release" >&2
     exit 1
 fi
