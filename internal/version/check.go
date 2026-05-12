@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/vieitesss/pad/internal/appfs"
 )
+
+const githubAPIBase = "https://api.github.com/"
 
 const (
 	githubRepo    = "vieitesss/pad"
@@ -110,6 +113,31 @@ func fetchLatestRelease() (*ReleaseInfo, error) {
 }
 
 func fetchRelease(apiURL string) (*ReleaseInfo, error) {
+	// Prefer gh CLI: it carries the user's existing auth and avoids rate limits.
+	apiPath := strings.TrimPrefix(apiURL, githubAPIBase)
+	if release, err := fetchReleaseViaGH(apiPath); err == nil {
+		return release, nil
+	}
+
+	// Fall back to unauthenticated HTTP (e.g. gh not installed or not authed).
+	return fetchReleaseViaHTTP(apiURL)
+}
+
+func fetchReleaseViaGH(apiPath string) (*ReleaseInfo, error) {
+	output, err := exec.Command("gh", "api", apiPath).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var release ReleaseInfo
+	if err := json.Unmarshal(output, &release); err != nil {
+		return nil, err
+	}
+
+	return &release, nil
+}
+
+func fetchReleaseViaHTTP(apiURL string) (*ReleaseInfo, error) {
 	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, err
